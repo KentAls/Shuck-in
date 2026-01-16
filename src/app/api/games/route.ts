@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getAuth } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { z } from 'zod';
 
@@ -19,8 +18,8 @@ const createGameSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const { isLoggedIn, user } = await getAuth();
+    if (!isLoggedIn || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -30,7 +29,7 @@ export async function GET(request: NextRequest) {
     // Get all teams user is a member of
     const userTeams = await prisma.teamMember.findMany({
       where: {
-        userId: session.user.id,
+        userId: user.id,
         status: 'ACTIVE',
       },
       select: { teamId: true },
@@ -73,7 +72,7 @@ export async function GET(request: NextRequest) {
     // Add user's RSVP status to each game
     const gamesWithUserRsvp = games.map((game) => ({
       ...game,
-      userRsvp: game.rsvps.find((r) => r.userId === session.user.id) || null,
+      userRsvp: game.rsvps.find((r) => r.userId === user.id) || null,
     }));
 
     return NextResponse.json(gamesWithUserRsvp);
@@ -85,8 +84,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const { isLoggedIn, user } = await getAuth();
+    if (!isLoggedIn || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -97,7 +96,7 @@ export async function POST(request: NextRequest) {
     const membership = await prisma.teamMember.findFirst({
       where: {
         teamId: validatedData.teamId,
-        userId: session.user.id,
+        userId: user.id,
         role: { in: ['OWNER', 'ADMIN'] },
         status: 'ACTIVE',
       },

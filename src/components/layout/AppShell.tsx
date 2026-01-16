@@ -35,8 +35,8 @@ import {
   SportsSoccer,
   Notifications,
 } from '@mui/icons-material';
-import { signOut, useSession } from 'next-auth/react';
 import Link from 'next/link';
+import { useAuth } from '@/components/providers/AuthProvider';
 
 const navItems = [
   { label: 'Dashboard', icon: <Dashboard />, path: '/dashboard' },
@@ -48,7 +48,7 @@ const navItems = [
 const drawerWidth = 260;
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
-  const { data: session } = useSession();
+  const { user } = useAuth();
   const pathname = usePathname();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -73,7 +73,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   };
 
   const handleSignOut = () => {
-    signOut({ callbackUrl: '/' });
+    // Redirect to Hello.coop logout
+    window.location.href = '/api/hellocoop?op=logout&target_uri=/';
   };
 
   const drawer = (
@@ -208,8 +209,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
             <IconButton onClick={handleMenuOpen}>
               <Avatar
-                src={session?.user?.image || undefined}
-                alt={session?.user?.name || 'User'}
+                src={user?.image || undefined}
+                alt={user?.name || 'User'}
                 sx={{
                   width: 36,
                   height: 36,
@@ -237,10 +238,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             >
               <Box sx={{ px: 2, py: 1.5 }}>
                 <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                  {session?.user?.name}
+                  {user?.name}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  {session?.user?.email}
+                  {user?.email}
                 </Typography>
               </Box>
               <Divider />
@@ -278,7 +279,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             paddingBottom: 'env(safe-area-inset-bottom)',
           }}
         >
-          {navItems.map((item, index) => (
+          {navItems.map((item) => (
             <BottomNavigationAction
               key={item.path}
               component={Link}

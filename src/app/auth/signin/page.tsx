@@ -1,57 +1,57 @@
 'use client';
 
-import { useState } from 'react';
-import { signIn } from 'next-auth/react';
-import { useSearchParams } from 'next/navigation';
+import { useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Box,
   Container,
   Typography,
   Button,
-  TextField,
-  Divider,
   Card,
   CardContent,
-  Stack,
   Alert,
   alpha,
-  InputAdornment,
+  CircularProgress,
 } from '@mui/material';
-import { Google, Email, SportsSoccer } from '@mui/icons-material';
+import { SportsSoccer, Login } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { useAuth } from '@/components/providers/AuthProvider';
 
 const MotionCard = motion(Card);
 
 export default function SignInPage() {
-  const [email, setEmail] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [emailSent, setEmailSent] = useState(false);
+  const router = useRouter();
   const searchParams = useSearchParams();
   const error = searchParams.get('error');
-  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
+  const { isLoggedIn, isLoading } = useAuth();
 
-  const handleGoogleSignIn = async () => {
-    setIsLoading(true);
-    await signIn('google', { callbackUrl });
-  };
-
-  const handleEmailSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email) return;
-
-    setIsLoading(true);
-    const result = await signIn('email', {
-      email,
-      callbackUrl,
-      redirect: false,
-    });
-
-    if (result?.ok) {
-      setEmailSent(true);
+  useEffect(() => {
+    if (isLoggedIn && !isLoading) {
+      router.push('/dashboard');
     }
-    setIsLoading(false);
+  }, [isLoggedIn, isLoading, router]);
+
+  const handleSignIn = () => {
+    // Redirect to Hello.coop login
+    window.location.href = '/api/hellocoop?op=login&target_uri=/dashboard';
   };
+
+  if (isLoading) {
+    return (
+      <Box
+        sx={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'linear-gradient(135deg, #0A0E17 0%, #121827 100%)',
+        }}
+      >
+        <CircularProgress sx={{ color: '#00D9FF' }} />
+      </Box>
+    );
+  }
 
   return (
     <Box
@@ -117,78 +117,36 @@ export default function SignInPage() {
             {/* Error Alert */}
             {error && (
               <Alert severity="error" sx={{ mb: 3 }}>
-                {error === 'OAuthAccountNotLinked'
-                  ? 'This email is already associated with another account.'
-                  : 'An error occurred during sign in.'}
+                An error occurred during sign in. Please try again.
               </Alert>
             )}
 
-            {/* Email Sent Success */}
-            {emailSent ? (
-              <Alert severity="success" sx={{ mb: 3 }}>
-                Check your email! We sent you a magic link to sign in.
-              </Alert>
-            ) : (
-              <>
-                {/* Google Sign In */}
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  size="large"
-                  startIcon={<Google />}
-                  onClick={handleGoogleSignIn}
-                  disabled={isLoading}
-                  sx={{
-                    py: 1.5,
-                    borderColor: alpha('#FFFFFF', 0.2),
-                    color: '#FFFFFF',
-                    '&:hover': {
-                      borderColor: '#FFFFFF',
-                      backgroundColor: alpha('#FFFFFF', 0.05),
-                    },
-                  }}
-                >
-                  Continue with Google
-                </Button>
+            {/* Hello Sign In Button */}
+            <Button
+              fullWidth
+              variant="contained"
+              size="large"
+              startIcon={<Login />}
+              onClick={handleSignIn}
+              sx={{
+                py: 2,
+                fontSize: '1.1rem',
+                background: 'linear-gradient(135deg, #00D9FF 0%, #00A8CC 100%)',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #5EEBFF 0%, #00D9FF 100%)',
+                },
+              }}
+            >
+              Continue with Hello
+            </Button>
 
-                <Divider sx={{ my: 3 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    or
-                  </Typography>
-                </Divider>
-
-                {/* Email Sign In */}
-                <form onSubmit={handleEmailSignIn}>
-                  <Stack spacing={2}>
-                    <TextField
-                      fullWidth
-                      type="email"
-                      label="Email address"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      disabled={isLoading}
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <Email sx={{ color: 'text.secondary' }} />
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-                    <Button
-                      fullWidth
-                      type="submit"
-                      variant="contained"
-                      size="large"
-                      disabled={isLoading || !email}
-                      sx={{ py: 1.5 }}
-                    >
-                      Send Magic Link
-                    </Button>
-                  </Stack>
-                </form>
-              </>
-            )}
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ textAlign: 'center', mt: 3 }}
+            >
+              Sign in with your email, Google, Apple, or other accounts through Hello.coop
+            </Typography>
 
             {/* Terms */}
             <Typography

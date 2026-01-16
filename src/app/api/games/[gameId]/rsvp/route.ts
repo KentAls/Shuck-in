@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getAuth } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { z } from 'zod';
 
@@ -14,8 +13,8 @@ export async function POST(
   { params }: { params: Promise<{ gameId: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const { isLoggedIn, user } = await getAuth();
+    if (!isLoggedIn || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -31,7 +30,7 @@ export async function POST(
           include: {
             members: {
               where: {
-                userId: session.user.id,
+                userId: user.id,
                 status: 'ACTIVE',
               },
             },
@@ -52,7 +51,7 @@ export async function POST(
     const rsvp = await prisma.gameRsvp.upsert({
       where: {
         userId_gameId: {
-          userId: session.user.id,
+          userId: user.id,
           gameId,
         },
       },
@@ -61,7 +60,7 @@ export async function POST(
         comment: validatedData.comment,
       },
       create: {
-        userId: session.user.id,
+        userId: user.id,
         gameId,
         status: validatedData.status,
         comment: validatedData.comment,

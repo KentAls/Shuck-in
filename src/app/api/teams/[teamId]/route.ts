@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getAuth } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { z } from 'zod';
 
@@ -16,8 +15,8 @@ export async function GET(
   { params }: { params: Promise<{ teamId: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const { isLoggedIn, user } = await getAuth();
+    if (!isLoggedIn || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -28,7 +27,7 @@ export async function GET(
         id: teamId,
         members: {
           some: {
-            userId: session.user.id,
+            userId: user.id,
             status: 'ACTIVE',
           },
         },
@@ -76,7 +75,7 @@ export async function GET(
     }
 
     // Get user's membership for this team
-    const userMembership = team.members.find((m) => m.userId === session.user.id);
+    const userMembership = team.members.find((m) => m.userId === user.id);
 
     return NextResponse.json({
       ...team,
@@ -93,8 +92,8 @@ export async function PATCH(
   { params }: { params: Promise<{ teamId: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const { isLoggedIn, user } = await getAuth();
+    if (!isLoggedIn || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -104,7 +103,7 @@ export async function PATCH(
     const membership = await prisma.teamMember.findFirst({
       where: {
         teamId,
-        userId: session.user.id,
+        userId: user.id,
         role: { in: ['OWNER', 'ADMIN'] },
         status: 'ACTIVE',
       },
@@ -137,8 +136,8 @@ export async function DELETE(
   { params }: { params: Promise<{ teamId: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const { isLoggedIn, user } = await getAuth();
+    if (!isLoggedIn || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -148,7 +147,7 @@ export async function DELETE(
     const team = await prisma.team.findFirst({
       where: {
         id: teamId,
-        ownerId: session.user.id,
+        ownerId: user.id,
       },
     });
 

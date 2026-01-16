@@ -18,7 +18,7 @@ The ultimate team sports management app. A modern alternative to TeamSnap and Be
 - **Language**: TypeScript
 - **UI**: Material UI with custom dark theme
 - **Database**: PostgreSQL with Prisma ORM
-- **Auth**: NextAuth.js (Google + Email magic links)
+- **Auth**: Hello.coop (zero-config OAuth)
 - **SMS**: Twilio
 - **Real-time**: Pusher (optional)
 - **Deployment**: Vercel
@@ -30,7 +30,7 @@ The ultimate team sports management app. A modern alternative to TeamSnap and Be
 - Node.js 18+
 - PostgreSQL database
 - Twilio account (for SMS)
-- Google OAuth credentials (for auth)
+- Hello.coop application (free at hello.coop)
 
 ### Installation
 
@@ -47,8 +47,7 @@ The ultimate team sports management app. A modern alternative to TeamSnap and Be
 
 4. Configure your `.env` file with:
    - Database URL
-   - NextAuth secret and URL
-   - Google OAuth credentials
+   - Hello.coop client ID and cookie secret
    - Twilio credentials
 
 5. Push database schema:
@@ -63,11 +62,27 @@ The ultimate team sports management app. A modern alternative to TeamSnap and Be
 
 ## Deployment
 
+### Hello.coop Setup
+
+1. Go to [hello.coop](https://hello.coop) and create an application
+2. Set your redirect URI to `https://your-domain.vercel.app/api/hellocoop`
+3. Copy your Client ID
+4. Generate a cookie secret: `openssl rand -hex 32`
+5. Add to your environment variables:
+   - `HELLO_CLIENT_ID` - Your Hello.coop client ID
+   - `HELLO_COOKIE_SECRET` - 64 character hex string
+
 ### Vercel (Recommended)
 
 1. Push your code to GitHub
 2. Import to Vercel
-3. Configure environment variables
+3. Configure environment variables:
+   - `DATABASE_URL` - PostgreSQL connection string
+   - `HELLO_CLIENT_ID` - From Hello.coop dashboard
+   - `HELLO_COOKIE_SECRET` - Generated hex string
+   - `TWILIO_ACCOUNT_SID` - From Twilio console
+   - `TWILIO_AUTH_TOKEN` - From Twilio console
+   - `TWILIO_PHONE_NUMBER` - Your Twilio phone number
 4. Deploy!
 
 ### Database
@@ -96,7 +111,7 @@ src/
 │   ├── layout/           # App shell & navigation
 │   └── providers/        # Context providers
 ├── lib/                  # Utilities
-│   ├── auth.ts          # NextAuth config
+│   ├── auth.ts          # Hello.coop auth helpers
 │   ├── prisma.ts        # Prisma client
 │   └── twilio.ts        # SMS service
 ├── theme/               # MUI theme config

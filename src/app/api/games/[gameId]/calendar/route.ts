@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getAuth } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { createEvent, EventAttributes } from 'ics';
 
@@ -9,8 +8,8 @@ export async function GET(
   { params }: { params: Promise<{ gameId: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const { isLoggedIn, user } = await getAuth();
+    if (!isLoggedIn || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -22,7 +21,7 @@ export async function GET(
         team: {
           members: {
             some: {
-              userId: session.user.id,
+              userId: user.id,
               status: 'ACTIVE',
             },
           },

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getAuth } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { z } from 'zod';
 
@@ -21,8 +20,8 @@ export async function GET(
   { params }: { params: Promise<{ gameId: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const { isLoggedIn, user } = await getAuth();
+    if (!isLoggedIn || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -34,7 +33,7 @@ export async function GET(
         team: {
           members: {
             some: {
-              userId: session.user.id,
+              userId: user.id,
               status: 'ACTIVE',
             },
           },
@@ -79,7 +78,7 @@ export async function GET(
     const membership = await prisma.teamMember.findFirst({
       where: {
         teamId: game.teamId,
-        userId: session.user.id,
+        userId: user.id,
         status: 'ACTIVE',
       },
     });
@@ -87,7 +86,7 @@ export async function GET(
     return NextResponse.json({
       ...game,
       userRole: membership?.role || null,
-      userRsvp: game.rsvps.find((r) => r.userId === session.user.id) || null,
+      userRsvp: game.rsvps.find((r) => r.userId === user.id) || null,
     });
   } catch (error) {
     console.error('Error fetching game:', error);
@@ -100,8 +99,8 @@ export async function PATCH(
   { params }: { params: Promise<{ gameId: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const { isLoggedIn, user } = await getAuth();
+    if (!isLoggedIn || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -115,7 +114,7 @@ export async function PATCH(
           include: {
             members: {
               where: {
-                userId: session.user.id,
+                userId: user.id,
                 role: { in: ['OWNER', 'ADMIN'] },
                 status: 'ACTIVE',
               },
@@ -161,8 +160,8 @@ export async function DELETE(
   { params }: { params: Promise<{ gameId: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const { isLoggedIn, user } = await getAuth();
+    if (!isLoggedIn || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -176,7 +175,7 @@ export async function DELETE(
           include: {
             members: {
               where: {
-                userId: session.user.id,
+                userId: user.id,
                 role: { in: ['OWNER', 'ADMIN'] },
                 status: 'ACTIVE',
               },

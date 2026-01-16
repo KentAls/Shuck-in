@@ -1,71 +1,87 @@
-import { NextAuthOptions } from 'next-auth';
-import { PrismaAdapter } from '@auth/prisma-adapter';
-import GoogleProvider from 'next-auth/providers/google';
-import EmailProvider from 'next-auth/providers/email';
+import { auth as helloAuth } from '@hellocoop/nextjs';
 import prisma from './prisma';
 
-export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma) as NextAuthOptions['adapter'],
-  providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    }),
-    EmailProvider({
-      server: {
-        host: process.env.EMAIL_SERVER_HOST,
-        port: process.env.EMAIL_SERVER_PORT,
-        auth: {
-          user: process.env.EMAIL_SERVER_USER,
-          pass: process.env.EMAIL_SERVER_PASSWORD,
-        },
+export interface AuthUser {
+  id: string;
+  sub: string;
+  name: string | null;
+  email: string | null;
+  image: string | null;
+  phone?: string | null;
+  jerseyNumber?: string | null;
+  position?: string | null;
+}
+
+export interface AuthResult {
+  isLoggedIn: boolean;
+  user: AuthUser | null;
+}
+
+// Server-side auth check
+export async function getAuth(): Promise<AuthResult> {
+  const hello = await helloAuth();
+
+  if (!hello.isLoggedIn) {
+    return { isLoggedIn: false, user: null };
+  }
+
+  // Find or create user in database
+  let user = await prisma.user.findUnique({
+    where: { email: hello.email },
+  });
+
+  if (!user && hello.email) {
+    // Create user on first login
+    user = await prisma.user.create({
+      data: {
+        email: hello.email,
+        name: hello.name || null,
+        image: hello.picture || null,
       },
-      from: process.env.EMAIL_FROM,
-    }),
-  ],
-  session: {
-    strategy: 'jwt',
-  },
-  pages: {
-    signIn: '/auth/signin',
-    error: '/auth/error',
-    newUser: '/onboarding',
-  },
-  callbacks: {
-    async session({ session, token }) {
-      if (session.user && token.sub) {
-        session.user.id = token.sub;
+    });
+  } else if (user) {
+    // Update user info if changed
+    if (user.name !== hello.name || user.image !== hello.picture) {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          name: hello.name || user.name,
+          image: hello.picture || user.image,
+        },
+      });
+    }
+  }
 
-        // Fetch additional user data
-        const user = await prisma.user.findUnique({
-          where: { id: token.sub },
-          select: {
-            phone: true,
-            jerseyNumber: true,
-            position: true,
-          },
-        });
+  if (!user) {
+    return { isLoggedIn: false, user: null };
+  }
 
-        if (user) {
-          session.user.phone = user.phone;
-          session.user.jerseyNumber = user.jerseyNumber;
-          session.user.position = user.position;
-        }
-      }
-      return session;
+  return {
+    isLoggedIn: true,
+    user: {
+      id: user.id,
+      sub: hello.sub,
+      name: user.name,
+      email: user.email,
+      image: user.image,
+      phone: user.phone,
+      jerseyNumber: user.jerseyNumber,
+      position: user.position,
     },
-    async jwt({ token, user, trigger, session }) {
-      if (user) {
-        token.id = user.id;
-      }
+  };
+}
 
-      // Handle session updates
-      if (trigger === 'update' && session) {
-        token.name = session.name;
-        token.picture = session.image;
-      }
+// Helper to get user ID from auth
+export async function getAuthUserId(): Promise<string | null> {
+  const { isLoggedIn, user } = await getAuth();
+  return isLoggedIn && user ? user.id : null;
+}
 
-      return token;
-    },
-  },
-};
+// Require auth or throw
+export async function requireAuth(): Promise<AuthUser> {
+  const { isLoggedIn, user } = await getAuth();
+  if (!isLoggedIn || !user) {
+    throw new Error('Unauthorized');
+  }
+  return user;
+}

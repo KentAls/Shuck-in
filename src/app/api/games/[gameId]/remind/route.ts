@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getAuth } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { sendBulkReminders } from '@/lib/twilio';
 import { format } from 'date-fns';
@@ -10,8 +9,8 @@ export async function POST(
   { params }: { params: Promise<{ gameId: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const { isLoggedIn, user } = await getAuth();
+    if (!isLoggedIn || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -25,7 +24,7 @@ export async function POST(
           include: {
             members: {
               where: {
-                userId: session.user.id,
+                userId: user.id,
                 role: { in: ['OWNER', 'ADMIN'] },
                 status: 'ACTIVE',
               },

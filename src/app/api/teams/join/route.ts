@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getAuth } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { z } from 'zod';
 
@@ -10,8 +9,8 @@ const joinTeamSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const { isLoggedIn, user } = await getAuth();
+    if (!isLoggedIn || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -31,7 +30,7 @@ export async function POST(request: NextRequest) {
     const existingMembership = await prisma.teamMember.findUnique({
       where: {
         userId_teamId: {
-          userId: session.user.id,
+          userId: user.id,
           teamId: team.id,
         },
       },
@@ -54,7 +53,7 @@ export async function POST(request: NextRequest) {
     // Create new membership
     await prisma.teamMember.create({
       data: {
-        userId: session.user.id,
+        userId: user.id,
         teamId: team.id,
         role: 'PLAYER',
       },
