@@ -18,7 +18,7 @@ import {
 } from '@mui/material';
 import { Person, Phone, SportsSoccer, ArrowForward, ArrowBack } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useSession } from 'next-auth/react';
+import { useAuth } from '@/components/providers/AuthProvider';
 
 const MotionBox = motion(Box);
 
@@ -26,11 +26,11 @@ const steps = ['Your Info', 'Player Details', 'Get Started'];
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { data: session, update: updateSession } = useSession();
+  const { user, refresh } = useAuth();
   const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    name: session?.user?.name || '',
+    name: user?.name || '',
     phone: '',
     jerseyNumber: '',
     position: '',
@@ -60,7 +60,7 @@ export default function OnboardingPage() {
       });
 
       if (res.ok) {
-        await updateSession({ name: formData.name });
+        await refresh();
         router.push('/dashboard');
       }
     } catch (error) {
