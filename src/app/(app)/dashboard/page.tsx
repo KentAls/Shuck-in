@@ -32,7 +32,7 @@ import {
 import { motion } from 'framer-motion';
 import { format, formatDistanceToNow, isPast } from 'date-fns';
 import Link from 'next/link';
-import { useSession } from 'next-auth/react';
+import { useAuth } from '@/components/providers/AuthProvider';
 
 const MotionCard = motion(Card);
 
@@ -73,7 +73,7 @@ interface Team {
 }
 
 export default function DashboardPage() {
-  const { data: session } = useSession();
+  const { user } = useAuth();
   const [upcomingGames, setUpcomingGames] = useState<Game[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
@@ -136,7 +136,7 @@ export default function DashboardPage() {
       {/* Welcome Section */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
-          Welcome back, {session?.user?.name?.split(' ')[0] || 'Player'}
+          Welcome back, {user?.name?.split(' ')[0] || 'Player'}
         </Typography>
         <Typography variant="body1" color="text.secondary">
           Here&apos;s what&apos;s happening with your teams

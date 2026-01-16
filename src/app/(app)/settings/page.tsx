@@ -26,7 +26,8 @@ import {
   Logout,
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
-import { useSession, signOut } from 'next-auth/react';
+import { useAuth } from '@/components/providers/AuthProvider';
+import { useRouter } from 'next/navigation';
 
 const MotionCard = motion(Card);
 
@@ -41,7 +42,8 @@ interface UserProfile {
 }
 
 export default function SettingsPage() {
-  const { data: session, update: updateSession } = useSession();
+  const { user, refresh } = useAuth();
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
@@ -96,10 +98,8 @@ export default function SettingsPage() {
       });
 
       if (res.ok) {
-        // Update the session
-        await updateSession({
-          name: formData.name,
-        });
+        // Refresh auth state
+        await refresh();
         setSnackbar({ open: true, message: 'Profile updated successfully!', severity: 'success' });
       } else {
         setSnackbar({ open: true, message: 'Failed to update profile', severity: 'error' });
@@ -112,7 +112,7 @@ export default function SettingsPage() {
   };
 
   const handleSignOut = () => {
-    signOut({ callbackUrl: '/' });
+    router.push('/api/hellocoop?op=logout&target_uri=/');
   };
 
   return (
@@ -137,8 +137,8 @@ export default function SettingsPage() {
 
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, mb: 4 }}>
               <Avatar
-                src={session?.user?.image || undefined}
-                alt={session?.user?.name || 'User'}
+                src={user?.image || undefined}
+                alt={user?.name || 'User'}
                 sx={{
                   width: 80,
                   height: 80,
@@ -147,9 +147,9 @@ export default function SettingsPage() {
                 }}
               />
               <Box>
-                <Typography variant="h6">{session?.user?.name}</Typography>
+                <Typography variant="h6">{user?.name}</Typography>
                 <Typography variant="body2" color="text.secondary">
-                  {session?.user?.email}
+                  {user?.email}
                 </Typography>
               </Box>
             </Box>
@@ -308,7 +308,7 @@ export default function SettingsPage() {
                   <Box>
                     <Typography variant="body1">Email</Typography>
                     <Typography variant="body2" color="text.secondary">
-                      {session?.user?.email}
+                      {user?.email}
                     </Typography>
                   </Box>
                 </Box>

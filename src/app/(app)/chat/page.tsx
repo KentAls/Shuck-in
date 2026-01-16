@@ -26,7 +26,7 @@ import {
 import { Send, Groups, Search } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, isToday, isYesterday, formatDistanceToNow } from 'date-fns';
-import { useSession } from 'next-auth/react';
+import { useAuth } from '@/components/providers/AuthProvider';
 
 const MotionBox = motion(Box);
 
@@ -51,7 +51,7 @@ interface Message {
 }
 
 export default function ChatPage() {
-  const { data: session } = useSession();
+  const { user } = useAuth();
   const searchParams = useSearchParams();
   const preselectedTeam = searchParams.get('team');
 
@@ -128,9 +128,9 @@ export default function ChatPage() {
       content: messageContent,
       createdAt: new Date().toISOString(),
       user: {
-        id: session?.user?.id || '',
-        name: session?.user?.name || 'You',
-        image: session?.user?.image || null,
+        id: user?.id || '',
+        name: user?.name || 'You',
+        image: user?.image || null,
       },
     };
     setMessages((prev) => [...prev, optimisticMessage]);
@@ -305,7 +305,7 @@ export default function ChatPage() {
                   <Stack spacing={2}>
                     <AnimatePresence>
                       {messages.map((message, index) => {
-                        const isOwn = message.user.id === session?.user?.id;
+                        const isOwn = message.user.id === user?.id;
                         const showAvatar =
                           index === 0 ||
                           messages[index - 1]?.user.id !== message.user.id;

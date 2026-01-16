@@ -45,7 +45,7 @@ import {
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { useSession } from 'next-auth/react';
+import { useAuth } from '@/components/providers/AuthProvider';
 
 const MotionCard = motion(Card);
 
@@ -102,7 +102,7 @@ export default function TeamDetailPage({
   params: Promise<{ teamId: string }>;
 }) {
   const { teamId } = use(params);
-  const { data: session } = useSession();
+  const { user } = useAuth();
   const [team, setTeam] = useState<Team | null>(null);
   const [loading, setLoading] = useState(true);
   const [tabValue, setTabValue] = useState(0);
@@ -335,7 +335,7 @@ export default function TeamDetailPage({
                       )}
                     </Box>
 
-                    {canManageTeam && member.user.id !== session?.user?.id && (
+                    {canManageTeam && member.user.id !== user?.id && (
                       <IconButton
                         size="small"
                         onClick={(e) => handleMemberMenuOpen(e, member)}

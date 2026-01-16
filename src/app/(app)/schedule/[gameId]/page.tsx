@@ -43,7 +43,7 @@ import {
 import { motion } from 'framer-motion';
 import { format, formatDistanceToNow, isPast } from 'date-fns';
 import Link from 'next/link';
-import { useSession } from 'next-auth/react';
+import { useAuth } from '@/components/providers/AuthProvider';
 import { useRouter } from 'next/navigation';
 
 const MotionCard = motion(Card);
@@ -91,7 +91,7 @@ export default function GameDetailPage({
   params: Promise<{ gameId: string }>;
 }) {
   const { gameId } = use(params);
-  const { data: session } = useSession();
+  const { user } = useAuth();
   const router = useRouter();
   const [game, setGame] = useState<Game | null>(null);
   const [loading, setLoading] = useState(true);
@@ -140,7 +140,7 @@ export default function GameDetailPage({
           ...game,
           userRsvp: updatedRsvp,
           rsvps: game.rsvps.map((r) =>
-            r.user.id === session?.user?.id ? updatedRsvp : r
+            r.user.id === user?.id ? updatedRsvp : r
           ),
         });
         setRsvpDialogOpen(false);
