@@ -240,16 +240,13 @@ export default function DashboardPage() {
           ) : (
             <Stack spacing={2}>
               {upcomingGames.slice(0, 5).map((game, index) => (
+                <Link key={game.id} href={`/schedule/${game.id}`} style={{ textDecoration: 'none' }}>
                 <MotionCard
-                  key={game.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
-                  component={Link}
-                  href={`/schedule/${game.id}`}
                   sx={{
                     cursor: 'pointer',
-                    textDecoration: 'none',
                     borderLeft: '4px solid',
                     borderLeftColor: game.team.color,
                   }}
@@ -332,6 +329,7 @@ export default function DashboardPage() {
                     </Grid>
                   </CardContent>
                 </MotionCard>
+                </Link>
               ))}
             </Stack>
           )}
