@@ -287,16 +287,13 @@ export default function SchedulePage() {
 
               <Stack spacing={2}>
                 {dateGames.map((game, index) => (
+                  <Link key={game.id} href={`/schedule/${game.id}`} style={{ textDecoration: 'none' }}>
                   <MotionCard
-                    key={game.id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.05 }}
-                    component={Link}
-                    href={`/schedule/${game.id}`}
                     sx={{
                       cursor: 'pointer',
-                      textDecoration: 'none',
                       borderLeft: '4px solid',
                       borderLeftColor: game.team.color,
                     }}
@@ -397,6 +394,7 @@ export default function SchedulePage() {
                       </Grid>
                     </CardContent>
                   </MotionCard>
+                  </Link>
                 ))}
               </Stack>
             </Box>

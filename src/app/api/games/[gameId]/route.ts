@@ -86,7 +86,7 @@ export async function GET(
     return NextResponse.json({
       ...game,
       userRole: membership?.role || null,
-      userRsvp: game.rsvps.find((r) => r.userId === user.id) || null,
+      userRsvp: game.rsvps.find((r: any) => r.userId === user.id) || null,
     });
   } catch (error) {
     console.error('Error fetching game:', error);

@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       select: { teamId: true },
     });
 
-    const teamIds = userTeams.map((t) => t.teamId);
+    const teamIds = userTeams.map((t: any) => t.teamId);
 
     const games = await prisma.game.findMany({
       where: {
@@ -55,9 +55,9 @@ export async function GET(request: NextRequest) {
     });
 
     // Add user's RSVP status to each game
-    const gamesWithUserRsvp = games.map((game) => ({
+    const gamesWithUserRsvp = games.map((game: any) => ({
       ...game,
-      userRsvp: game.rsvps.find((r) => r.userId === user.id) || null,
+      userRsvp: game.rsvps.find((r: any) => r.userId === user.id) || null,
     }));
 
     return NextResponse.json(gamesWithUserRsvp);

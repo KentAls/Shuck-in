@@ -75,7 +75,7 @@ export async function GET(
     }
 
     // Get user's membership for this team
-    const userMembership = team.members.find((m) => m.userId === user.id);
+    const userMembership = team.members.find((m: any) => m.userId === user.id);
 
     return NextResponse.json({
       ...team,

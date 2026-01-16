@@ -171,15 +171,13 @@ export default function TeamListPage() {
         <Grid container spacing={3}>
           {teams.map((team, index) => (
             <Grid item xs={12} sm={6} md={4} key={team.id}>
+              <Link href={`/team/${team.id}`} style={{ textDecoration: 'none', display: 'block', height: '100%' }}>
               <MotionCard
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
-                component={Link}
-                href={`/team/${team.id}`}
                 sx={{
                   cursor: 'pointer',
-                  textDecoration: 'none',
                   height: '100%',
                   display: 'flex',
                   flexDirection: 'column',
@@ -264,6 +262,7 @@ export default function TeamListPage() {
                   </Box>
                 </CardContent>
               </MotionCard>
+              </Link>
             </Grid>
           ))}
         </Grid>

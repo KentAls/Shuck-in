@@ -1,4 +1,4 @@
-import { handler } from '@hellocoop/nextjs';
+import { appAuth } from '@hellocoop/nextjs';
+import config from '../../../../hello.config';
 
-export const GET = handler;
-export const POST = handler;
+export const { GET } = appAuth(config);

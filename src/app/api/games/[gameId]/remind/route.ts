@@ -58,8 +58,8 @@ export async function POST(
 
     // Filter to only users with phone numbers who haven't responded
     const recipientsWithPhones = game.rsvps
-      .filter((rsvp) => rsvp.user.phone)
-      .map((rsvp) => ({
+      .filter((rsvp: any) => rsvp.user.phone)
+      .map((rsvp: any) => ({
         userId: rsvp.user.id,
         phone: rsvp.user.phone!,
         name: rsvp.user.name || 'Player',
@@ -89,8 +89,8 @@ export async function POST(
     if (result.sent > 0) {
       await prisma.reminderSent.createMany({
         data: recipientsWithPhones
-          .filter((_, i) => result.results[i]?.success)
-          .map((recipient) => ({
+          .filter((_: any, i: number) => result.results[i]?.success)
+          .map((recipient: any) => ({
             gameId,
             userId: recipient.userId,
             type: 'sms',

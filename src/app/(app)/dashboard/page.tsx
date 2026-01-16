@@ -388,16 +388,13 @@ export default function DashboardPage() {
           ) : (
             <Stack spacing={2}>
               {teams.map((team, index) => (
+                <Link key={team.id} href={`/team/${team.id}`} style={{ textDecoration: 'none' }}>
                 <MotionCard
-                  key={team.id}
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.1 }}
-                  component={Link}
-                  href={`/team/${team.id}`}
                   sx={{
                     cursor: 'pointer',
-                    textDecoration: 'none',
                     borderLeft: '4px solid',
                     borderLeftColor: team.color,
                   }}
@@ -417,6 +414,7 @@ export default function DashboardPage() {
                     />
                   </CardContent>
                 </MotionCard>
+                </Link>
               ))}
 
               <Button
