@@ -4,6 +4,8 @@ import prisma from '@/lib/prisma';
 import { sendBulkReminders } from '@/lib/twilio';
 import { format } from 'date-fns';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ gameId: string }> }

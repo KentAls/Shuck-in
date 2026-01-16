@@ -3,6 +3,8 @@ import { getAuth } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { z } from 'zod';
 
+export const dynamic = 'force-dynamic';
+
 const updateGameSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   opponent: z.string().max(100).optional().nullable(),

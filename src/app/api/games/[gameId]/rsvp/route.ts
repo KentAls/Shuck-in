@@ -3,6 +3,8 @@ import { getAuth } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { z } from 'zod';
 
+export const dynamic = 'force-dynamic';
+
 const rsvpSchema = z.object({
   status: z.enum(['IN', 'OUT', 'MAYBE']),
   comment: z.string().max(200).optional(),

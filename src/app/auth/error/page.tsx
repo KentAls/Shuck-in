@@ -1,14 +1,15 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Box, Container, Typography, Button, Card, CardContent, alpha } from '@mui/material';
-import { Error as ErrorIcon, SportsSoccer } from '@mui/icons-material';
+import { Box, Container, Typography, Button, Card, CardContent, alpha, CircularProgress } from '@mui/material';
+import { Error as ErrorIcon } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 
 const MotionCard = motion(Card);
 
-export default function AuthErrorPage() {
+function ErrorContent() {
   const searchParams = useSearchParams();
   const error = searchParams.get('error');
 
@@ -96,5 +97,27 @@ export default function AuthErrorPage() {
         </MotionCard>
       </Container>
     </Box>
+  );
+}
+
+export default function AuthErrorPage() {
+  return (
+    <Suspense
+      fallback={
+        <Box
+          sx={{
+            minHeight: '100vh',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'linear-gradient(135deg, #0A0E17 0%, #121827 100%)',
+          }}
+        >
+          <CircularProgress sx={{ color: '#FF4757' }} />
+        </Box>
+      }
+    >
+      <ErrorContent />
+    </Suspense>
   );
 }

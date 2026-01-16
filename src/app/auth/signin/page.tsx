@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Box,
@@ -20,7 +20,7 @@ import { useAuth } from '@/components/providers/AuthProvider';
 
 const MotionCard = motion(Card);
 
-export default function SignInPage() {
+function SignInContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const error = searchParams.get('error');
@@ -160,5 +160,27 @@ export default function SignInPage() {
         </MotionCard>
       </Container>
     </Box>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense
+      fallback={
+        <Box
+          sx={{
+            minHeight: '100vh',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'linear-gradient(135deg, #0A0E17 0%, #121827 100%)',
+          }}
+        >
+          <CircularProgress sx={{ color: '#00D9FF' }} />
+        </Box>
+      }
+    >
+      <SignInContent />
+    </Suspense>
   );
 }

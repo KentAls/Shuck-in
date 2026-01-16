@@ -3,6 +3,8 @@ import { getAuth } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { z } from 'zod';
 
+export const dynamic = 'force-dynamic';
+
 const joinTeamSchema = z.object({
   inviteCode: z.string().min(1),
 });
