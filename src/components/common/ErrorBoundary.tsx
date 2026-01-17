@@ -52,21 +52,51 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
       userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
     };
 
+    const textToCopy = JSON.stringify(errorDetails, null, 2);
+
+    // Try modern clipboard API first
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(textToCopy);
+        this.setState({ copied: true });
+        setTimeout(() => this.setState({ copied: false }), 2000);
+        return;
+      } catch {
+        // Fall through to fallback
+      }
+    }
+
+    // Fallback for iOS Safari and older browsers
+    const textArea = document.createElement('textarea');
+    textArea.value = textToCopy;
+    textArea.style.fontSize = '16px';
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-9999px';
+    textArea.style.top = '0';
+    textArea.style.opacity = '0';
+    textArea.setAttribute('readonly', '');
+    textArea.setAttribute('contenteditable', 'true');
+
+    document.body.appendChild(textArea);
+
+    const range = document.createRange();
+    range.selectNodeContents(textArea);
+    const selection = window.getSelection();
+    if (selection) {
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+    textArea.setSelectionRange(0, textToCopy.length);
+
     try {
-      await navigator.clipboard.writeText(JSON.stringify(errorDetails, null, 2));
+      document.execCommand('copy');
       this.setState({ copied: true });
       setTimeout(() => this.setState({ copied: false }), 2000);
     } catch {
-      // Fallback
-      const textArea = document.createElement('textarea');
-      textArea.value = JSON.stringify(errorDetails, null, 2);
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-      this.setState({ copied: true });
-      setTimeout(() => this.setState({ copied: false }), 2000);
+      // Silent fail
     }
+
+    document.body.removeChild(textArea);
   };
 
   render() {

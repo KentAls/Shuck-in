@@ -64,23 +64,61 @@ export default function ErrorDetailsDialog({
   };
 
   const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(formatErrorDetails());
-      setCopied(true);
-      setSnackbarOpen(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      // Fallback for older browsers
-      const textArea = document.createElement('textarea');
-      textArea.value = formatErrorDetails();
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-      setCopied(true);
-      setSnackbarOpen(true);
-      setTimeout(() => setCopied(false), 2000);
+    const textToCopy = formatErrorDetails();
+
+    // Try modern clipboard API first (works on most modern browsers including mobile)
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(textToCopy);
+        setCopied(true);
+        setSnackbarOpen(true);
+        setTimeout(() => setCopied(false), 2000);
+        return;
+      } catch {
+        // Fall through to fallback
+      }
     }
+
+    // Fallback for iOS Safari and older browsers
+    const textArea = document.createElement('textarea');
+    textArea.value = textToCopy;
+
+    // Prevent zooming on iOS
+    textArea.style.fontSize = '16px';
+
+    // Make it invisible but still selectable
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-9999px';
+    textArea.style.top = '0';
+    textArea.style.opacity = '0';
+
+    // iOS Safari requires the element to be editable and contentEditable
+    textArea.setAttribute('readonly', '');
+    textArea.setAttribute('contenteditable', 'true');
+
+    document.body.appendChild(textArea);
+
+    // iOS Safari selection workaround
+    const range = document.createRange();
+    range.selectNodeContents(textArea);
+    const selection = window.getSelection();
+    if (selection) {
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+    textArea.setSelectionRange(0, textToCopy.length);
+
+    try {
+      document.execCommand('copy');
+      setCopied(true);
+      setSnackbarOpen(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // If all else fails, show the text in an alert so user can manually copy
+      setSnackbarOpen(false);
+    }
+
+    document.body.removeChild(textArea);
   };
 
   const getUserFriendlyMessage = () => {
