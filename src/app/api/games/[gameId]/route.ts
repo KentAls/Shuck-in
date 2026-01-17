@@ -19,7 +19,7 @@ const updateGameSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ gameId: string }> }
+  { params }: { params: { gameId: string } }
 ) {
   try {
     const { isLoggedIn, user } = await getAuth();
@@ -27,7 +27,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { gameId } = await params;
+    const { gameId } = params;
 
     const game = await prisma.game.findFirst({
       where: {
@@ -98,7 +98,7 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ gameId: string }> }
+  { params }: { params: { gameId: string } }
 ) {
   try {
     const { isLoggedIn, user } = await getAuth();
@@ -106,7 +106,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { gameId } = await params;
+    const { gameId } = params;
 
     // Get game and check permissions
     const existingGame = await prisma.game.findUnique({
@@ -159,7 +159,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ gameId: string }> }
+  { params }: { params: { gameId: string } }
 ) {
   try {
     const { isLoggedIn, user } = await getAuth();
@@ -167,7 +167,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { gameId } = await params;
+    const { gameId } = params;
 
     // Get game and check permissions
     const existingGame = await prisma.game.findUnique({

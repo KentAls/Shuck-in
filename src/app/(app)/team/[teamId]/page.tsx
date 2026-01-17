@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box,
   Grid,
@@ -99,9 +99,9 @@ function TabPanel({ children, value, index }: TabPanelProps) {
 export default function TeamDetailPage({
   params,
 }: {
-  params: Promise<{ teamId: string }>;
+  params: { teamId: string };
 }) {
-  const { teamId } = use(params);
+  const { teamId } = params;
   const { user } = useAuth();
   const [team, setTeam] = useState<Team | null>(null);
   const [loading, setLoading] = useState(true);
