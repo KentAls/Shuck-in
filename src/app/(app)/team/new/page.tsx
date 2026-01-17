@@ -20,6 +20,7 @@ import {
 import { ArrowBack, SportsSoccer, SportsHockey, SportsBasketball, SportsTennis } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { useError } from '@/components/providers/ErrorProvider';
 
 const MotionCard = motion(Card);
 
@@ -47,6 +48,7 @@ const colors = [
 
 export default function CreateTeamPage() {
   const router = useRouter();
+  const { showApiError, showNetworkError } = useError();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -70,11 +72,10 @@ export default function CreateTeamPage() {
         const team = await res.json();
         router.push(`/team/${team.id}`);
       } else {
-        const error = await res.json();
-        console.error('Error creating team:', error);
+        await showApiError(res, 'Failed to create team');
       }
     } catch (error) {
-      console.error('Error creating team:', error);
+      showNetworkError(error, '/api/teams');
     } finally {
       setLoading(false);
     }

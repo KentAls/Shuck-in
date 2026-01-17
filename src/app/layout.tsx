@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import ThemeRegistry from '@/theme/ThemeRegistry';
 import { AuthProvider } from '@/components/providers/AuthProvider';
+import { ErrorProvider } from '@/components/providers/ErrorProvider';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,7 +51,9 @@ export default function RootLayout({
       <body>
         <AuthProvider>
           <ThemeRegistry>
-            {children}
+            <ErrorProvider>
+              {children}
+            </ErrorProvider>
           </ThemeRegistry>
         </AuthProvider>
       </body>
