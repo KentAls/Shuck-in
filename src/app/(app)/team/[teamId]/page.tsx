@@ -46,6 +46,7 @@ import {
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { useError } from '@/components/providers/ErrorProvider';
 
 const MotionCard = motion(Card);
 
@@ -103,6 +104,7 @@ export default function TeamDetailPage({
 }) {
   const { teamId } = use(params);
   const { user } = useAuth();
+  const { showApiError, showNetworkError } = useError();
   const [team, setTeam] = useState<Team | null>(null);
   const [loading, setLoading] = useState(true);
   const [tabValue, setTabValue] = useState(0);
@@ -121,10 +123,18 @@ export default function TeamDetailPage({
       const res = await fetch(`/api/teams/${teamId}`);
       if (res.ok) {
         const data = await res.json();
-        setTeam(data);
+        // Validate the response has expected structure
+        if (data && typeof data === 'object' && data.id && data.name) {
+          setTeam(data);
+        } else {
+          console.error('Invalid team data structure:', data);
+          setTeam(null);
+        }
+      } else {
+        await showApiError(res, 'Failed to load team');
       }
     } catch (error) {
-      console.error('Error fetching team:', error);
+      showNetworkError(error, `/api/teams/${teamId}`);
     } finally {
       setLoading(false);
     }
@@ -237,7 +247,7 @@ export default function TeamDetailPage({
             <CardContent sx={{ textAlign: 'center' }}>
               <Groups sx={{ fontSize: 32, color: team.color, mb: 1 }} />
               <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                {team._count.members}
+                {team._count?.members ?? 0}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Players
@@ -250,7 +260,7 @@ export default function TeamDetailPage({
             <CardContent sx={{ textAlign: 'center' }}>
               <CalendarMonth sx={{ fontSize: 32, color: '#FF3366', mb: 1 }} />
               <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                {team._count.games}
+                {team._count?.games ?? 0}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Games
@@ -272,7 +282,7 @@ export default function TeamDetailPage({
       {/* Roster Tab */}
       <TabPanel value={tabValue} index={0}>
         <Grid container spacing={2}>
-          {team.members.map((member, index) => (
+          {(team.members || []).map((member, index) => (
             <Grid item xs={12} sm={6} md={4} key={member.id}>
               <MotionCard
                 initial={{ opacity: 0, y: 20 }}
@@ -282,8 +292,8 @@ export default function TeamDetailPage({
                 <CardContent>
                   <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
                     <Avatar
-                      src={member.user.image || undefined}
-                      alt={member.user.name || 'Player'}
+                      src={member.user?.image || undefined}
+                      alt={String(member.user?.name || 'Player')}
                       sx={{
                         width: 56,
                         height: 56,
@@ -294,11 +304,11 @@ export default function TeamDetailPage({
                     <Box sx={{ flex: 1, minWidth: 0 }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Typography variant="subtitle1" sx={{ fontWeight: 600 }} noWrap>
-                          {member.user.name || 'Unknown Player'}
+                          {String(member.user?.name || 'Unknown Player')}
                         </Typography>
-                        {member.role !== 'PLAYER' && (
+                        {member.role && member.role !== 'PLAYER' && (
                           <Chip
-                            label={member.role}
+                            label={String(member.role)}
                             size="small"
                             sx={{
                               height: 20,
@@ -311,31 +321,31 @@ export default function TeamDetailPage({
                       </Box>
 
                       <Stack direction="row" spacing={2} sx={{ mt: 0.5 }}>
-                        {member.user.jerseyNumber && (
+                        {member.user?.jerseyNumber && (
                           <Typography variant="body2" color="text.secondary">
-                            #{member.user.jerseyNumber}
+                            #{String(member.user.jerseyNumber)}
                           </Typography>
                         )}
-                        {member.user.position && (
+                        {member.user?.position && (
                           <Typography variant="body2" color="text.secondary">
-                            {member.user.position}
+                            {String(member.user.position)}
                           </Typography>
                         )}
                       </Stack>
 
-                      {member.user.email && (
+                      {member.user?.email && (
                         <Typography
                           variant="caption"
                           color="text.secondary"
                           sx={{ display: 'block', mt: 0.5 }}
                           noWrap
                         >
-                          {member.user.email}
+                          {String(member.user.email)}
                         </Typography>
                       )}
                     </Box>
 
-                    {canManageTeam && member.user.id !== user?.id && (
+                    {canManageTeam && member.user?.id !== user?.id && (
                       <IconButton
                         size="small"
                         onClick={(e) => handleMemberMenuOpen(e, member)}
