@@ -56,13 +56,34 @@ export async function GET(request: NextRequest) {
       take: 10,
     });
 
-    // Add user's RSVP status to each game
-    const gamesWithUserRsvp = games.map((game: any) => ({
-      ...game,
-      userRsvp: game.rsvps.find((r: any) => r.userId === user.id) || null,
+    // Sanitize response to only include needed fields
+    // This prevents potential serialization issues with Date objects
+    const sanitizedGames = games.map((game: any) => ({
+      id: game.id,
+      title: game.title,
+      opponent: game.opponent,
+      location: game.location,
+      startTime: game.startTime instanceof Date ? game.startTime.toISOString() : game.startTime,
+      gameType: game.gameType,
+      team: {
+        id: game.team.id,
+        name: game.team.name,
+        color: game.team.color,
+      },
+      _count: game._count,
+      rsvps: game.rsvps.map((r: any) => ({
+        status: r.status,
+        user: {
+          name: r.user.name,
+          image: r.user.image,
+        },
+      })),
+      userRsvp: game.rsvps.find((r: any) => r.userId === user.id)
+        ? { status: game.rsvps.find((r: any) => r.userId === user.id).status }
+        : null,
     }));
 
-    return NextResponse.json(gamesWithUserRsvp);
+    return NextResponse.json(sanitizedGames);
   } catch (error) {
     console.error('Error fetching upcoming games:', error);
     return NextResponse.json({ error: 'Failed to fetch games' }, { status: 500 });

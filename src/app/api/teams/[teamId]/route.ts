@@ -79,10 +79,37 @@ export async function GET(
     // Get user's membership for this team
     const userMembership = team.members.find((m: any) => m.userId === user.id);
 
-    return NextResponse.json({
-      ...team,
+    // Return only the fields needed by the frontend to avoid serialization issues
+    // This prevents React error #438 (objects not valid as React children)
+    const sanitizedResponse = {
+      id: team.id,
+      name: team.name,
+      sport: team.sport,
+      description: team.description,
+      color: team.color,
+      inviteCode: team.inviteCode,
+      owner: {
+        id: team.owner.id,
+        name: team.owner.name,
+      },
+      members: team.members.map((m: any) => ({
+        id: m.id,
+        role: m.role,
+        user: {
+          id: m.user.id,
+          name: m.user.name,
+          email: m.user.email,
+          image: m.user.image,
+          phone: m.user.phone,
+          jerseyNumber: m.user.jerseyNumber,
+          position: m.user.position,
+        },
+      })),
       userRole: userMembership?.role || null,
-    });
+      _count: team._count,
+    };
+
+    return NextResponse.json(sanitizedResponse);
   } catch (error) {
     console.error('Error fetching team:', error);
     return NextResponse.json({ error: 'Failed to fetch team' }, { status: 500 });

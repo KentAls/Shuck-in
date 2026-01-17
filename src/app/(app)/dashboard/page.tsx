@@ -72,18 +72,25 @@ interface Team {
   };
 }
 
+interface UserStats {
+  gamesPlayed: number;
+  attendanceRate: number;
+}
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const [upcomingGames, setUpcomingGames] = useState<Game[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
+  const [userStats, setUserStats] = useState<UserStats>({ gamesPlayed: 0, attendanceRate: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [gamesRes, teamsRes] = await Promise.all([
+        const [gamesRes, teamsRes, statsRes] = await Promise.all([
           fetch('/api/games/upcoming'),
           fetch('/api/teams'),
+          fetch('/api/user/stats'),
         ]);
 
         if (gamesRes.ok) {
@@ -94,6 +101,11 @@ export default function DashboardPage() {
         if (teamsRes.ok) {
           const teamsData = await teamsRes.json();
           setTeams(teamsData);
+        }
+
+        if (statsRes.ok) {
+          const statsData = await statsRes.json();
+          setUserStats(statsData);
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -176,7 +188,7 @@ export default function DashboardPage() {
             <CardContent sx={{ textAlign: 'center' }}>
               <EmojiEvents sx={{ fontSize: 40, color: '#00FF94', mb: 1 }} />
               <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                12
+                {userStats.gamesPlayed}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Games Played
@@ -189,7 +201,7 @@ export default function DashboardPage() {
             <CardContent sx={{ textAlign: 'center' }}>
               <TrendingUp sx={{ fontSize: 40, color: '#FFB800', mb: 1 }} />
               <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                75%
+                {userStats.attendanceRate}%
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Attendance
