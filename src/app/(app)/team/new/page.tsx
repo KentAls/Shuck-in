@@ -73,10 +73,32 @@ export default function CreateTeamPage() {
         const team = await res.json();
         router.push(`/team/${team.id}`);
       } else {
-        const errorData = await res.json();
+        // Try to parse JSON error response, fall back to text if not JSON
+        let errorData: unknown;
+        let errorMessage = 'Failed to create team';
+
+        const contentType = res.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          try {
+            errorData = await res.json();
+            errorMessage = (errorData as { error?: string })?.error || errorMessage;
+          } catch {
+            errorData = { parseError: 'Failed to parse JSON response' };
+          }
+        } else {
+          // Non-JSON response (HTML error page, plain text, etc.)
+          try {
+            const textBody = await res.text();
+            errorData = { rawResponse: textBody.slice(0, 500) }; // Truncate long HTML
+            errorMessage = `Server error (${res.status})`;
+          } catch {
+            errorData = { parseError: 'Failed to read response body' };
+          }
+        }
+
         console.error('Error creating team:', errorData);
         setErrorDetails({
-          message: errorData.error || 'Failed to create team',
+          message: errorMessage,
           status: res.status,
           details: errorData,
           timestamp: new Date().toISOString(),
@@ -85,11 +107,13 @@ export default function CreateTeamPage() {
         setErrorDialogOpen(true);
       }
     } catch (error) {
+      // Network errors, CORS issues, DNS failures, etc.
       console.error('Error creating team:', error);
       setErrorDetails({
         message: error instanceof Error ? error.message : 'Network error occurred',
         status: 0,
         details: {
+          type: 'NetworkError',
           name: error instanceof Error ? error.name : 'Unknown',
           stack: error instanceof Error ? error.stack : undefined,
         },
