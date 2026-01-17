@@ -16,6 +16,7 @@ import {
   MenuItem,
   alpha,
   Grid,
+  Alert,
 } from '@mui/material';
 import { ArrowBack, SportsSoccer, SportsHockey, SportsBasketball, SportsTennis } from '@mui/icons-material';
 import { motion } from 'framer-motion';
@@ -48,6 +49,7 @@ const colors = [
 export default function CreateTeamPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     sport: '',
@@ -58,6 +60,7 @@ export default function CreateTeamPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
 
     try {
       const res = await fetch('/api/teams', {
@@ -70,11 +73,13 @@ export default function CreateTeamPage() {
         const team = await res.json();
         router.push(`/team/${team.id}`);
       } else {
-        const error = await res.json();
-        console.error('Error creating team:', error);
+        const errorData = await res.json();
+        console.error('Error creating team:', errorData);
+        setError(errorData.error || `Failed to create team (${res.status})`);
       }
-    } catch (error) {
-      console.error('Error creating team:', error);
+    } catch (err) {
+      console.error('Error creating team:', err);
+      setError('Network error - please try again');
     } finally {
       setLoading(false);
     }
@@ -107,6 +112,11 @@ export default function CreateTeamPage() {
         <CardContent sx={{ p: 4 }}>
           <form onSubmit={handleSubmit}>
             <Stack spacing={3}>
+              {error && (
+                <Alert severity="error" onClose={() => setError(null)}>
+                  {error}
+                </Alert>
+              )}
               <TextField
                 label="Team Name"
                 value={formData.name}
