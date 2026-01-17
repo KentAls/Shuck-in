@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ gameId: string }> }
+  { params }: { params: { gameId: string } }
 ) {
   try {
     const { isLoggedIn, user } = await getAuth();
@@ -16,7 +16,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { gameId } = await params;
+    const { gameId } = params;
 
     // Get game and check permissions
     const game = await prisma.game.findUnique({

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box,
   Grid,
@@ -88,9 +88,9 @@ interface Game {
 export default function GameDetailPage({
   params,
 }: {
-  params: Promise<{ gameId: string }>;
+  params: { gameId: string };
 }) {
-  const { gameId } = use(params);
+  const { gameId } = params;
   const { user } = useAuth();
   const router = useRouter();
   const [game, setGame] = useState<Game | null>(null);
