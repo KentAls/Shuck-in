@@ -20,6 +20,7 @@ import {
 import { ArrowBack, SportsSoccer, SportsHockey, SportsBasketball, SportsTennis } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import ErrorDetailsDialog, { ErrorDetails } from '@/components/common/ErrorDetailsDialog';
 
 const MotionCard = motion(Card);
 
@@ -54,6 +55,8 @@ export default function CreateTeamPage() {
     description: '',
     color: colors[0],
   });
+  const [errorDialogOpen, setErrorDialogOpen] = useState(false);
+  const [errorDetails, setErrorDetails] = useState<ErrorDetails | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,11 +73,30 @@ export default function CreateTeamPage() {
         const team = await res.json();
         router.push(`/team/${team.id}`);
       } else {
-        const error = await res.json();
-        console.error('Error creating team:', error);
+        const errorData = await res.json();
+        console.error('Error creating team:', errorData);
+        setErrorDetails({
+          message: errorData.error || 'Failed to create team',
+          status: res.status,
+          details: errorData,
+          timestamp: new Date().toISOString(),
+          path: '/api/teams',
+        });
+        setErrorDialogOpen(true);
       }
     } catch (error) {
       console.error('Error creating team:', error);
+      setErrorDetails({
+        message: error instanceof Error ? error.message : 'Network error occurred',
+        status: 0,
+        details: {
+          name: error instanceof Error ? error.name : 'Unknown',
+          stack: error instanceof Error ? error.stack : undefined,
+        },
+        timestamp: new Date().toISOString(),
+        path: '/api/teams',
+      });
+      setErrorDialogOpen(true);
     } finally {
       setLoading(false);
     }
@@ -206,6 +228,13 @@ export default function CreateTeamPage() {
           </form>
         </CardContent>
       </MotionCard>
+
+      <ErrorDetailsDialog
+        open={errorDialogOpen}
+        onClose={() => setErrorDialogOpen(false)}
+        error={errorDetails}
+        title="Failed to Create Team"
+      />
     </Box>
   );
 }
