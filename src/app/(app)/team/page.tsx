@@ -96,10 +96,14 @@ export default function TeamListPage() {
     setAnchorEl(null);
   };
 
-  const handleCopyInviteCode = () => {
+  const handleCopyInviteCode = async () => {
     if (selectedTeam) {
-      navigator.clipboard.writeText(selectedTeam.inviteCode);
-      setSnackbar({ open: true, message: 'Invite code copied!', severity: 'success' });
+      try {
+        await navigator.clipboard.writeText(selectedTeam.inviteCode);
+        setSnackbar({ open: true, message: 'Invite code copied!', severity: 'success' });
+      } catch (error) {
+        setSnackbar({ open: true, message: 'Failed to copy invite code', severity: 'error' });
+      }
     }
     handleMenuClose();
   };
