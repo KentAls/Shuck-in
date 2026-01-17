@@ -19,6 +19,7 @@ import {
 import { Person, Phone, SportsSoccer, ArrowForward, ArrowBack } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { useError } from '@/components/providers/ErrorProvider';
 
 const MotionBox = motion(Box);
 
@@ -27,6 +28,7 @@ const steps = ['Your Info', 'Player Details', 'Get Started'];
 export default function OnboardingPage() {
   const router = useRouter();
   const { user, refresh } = useAuth();
+  const { showApiError, showNetworkError } = useError();
   const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -62,9 +64,11 @@ export default function OnboardingPage() {
       if (res.ok) {
         await refresh();
         router.push('/dashboard');
+      } else {
+        await showApiError(res, 'Failed to save profile');
       }
     } catch (error) {
-      console.error('Error saving profile:', error);
+      showNetworkError(error, '/api/user');
     } finally {
       setLoading(false);
     }

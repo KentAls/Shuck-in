@@ -28,6 +28,7 @@ import {
 import { motion } from 'framer-motion';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useRouter } from 'next/navigation';
+import { useError } from '@/components/providers/ErrorProvider';
 
 const MotionCard = motion(Card);
 
@@ -44,6 +45,7 @@ interface UserProfile {
 export default function SettingsPage() {
   const { user, refresh } = useAuth();
   const router = useRouter();
+  const { showApiError, showNetworkError } = useError();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
@@ -74,9 +76,11 @@ export default function SettingsPage() {
           jerseyNumber: data.jerseyNumber || '',
           position: data.position || '',
         });
+      } else {
+        await showApiError(res, 'Failed to load profile');
       }
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      showNetworkError(error, '/api/user');
     } finally {
       setLoading(false);
     }

@@ -21,6 +21,7 @@ import { ArrowBack, CalendarMonth, SportsSoccer } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { format, addHours } from 'date-fns';
+import { useError } from '@/components/providers/ErrorProvider';
 
 const MotionCard = motion(Card);
 
@@ -42,6 +43,7 @@ const gameTypes = [
 export default function NewGamePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { showApiError, showNetworkError } = useError();
   const preselectedTeam = searchParams.get('team');
 
   const [teams, setTeams] = useState<Team[]>([]);
@@ -68,13 +70,17 @@ export default function NewGamePage() {
       const res = await fetch('/api/teams');
       if (res.ok) {
         const data = await res.json();
-        setTeams(data);
-        if (!preselectedTeam && data.length === 1) {
-          setFormData((prev) => ({ ...prev, teamId: data[0].id }));
+        if (Array.isArray(data)) {
+          setTeams(data);
+          if (!preselectedTeam && data.length === 1) {
+            setFormData((prev) => ({ ...prev, teamId: data[0].id }));
+          }
         }
+      } else {
+        await showApiError(res, 'Failed to load teams');
       }
     } catch (error) {
-      console.error('Error fetching teams:', error);
+      showNetworkError(error, '/api/teams');
     }
   };
 
@@ -101,11 +107,10 @@ export default function NewGamePage() {
         const game = await res.json();
         router.push(`/schedule/${game.id}`);
       } else {
-        const error = await res.json();
-        console.error('Error creating game:', error);
+        await showApiError(res, 'Failed to create game');
       }
     } catch (error) {
-      console.error('Error creating game:', error);
+      showNetworkError(error, '/api/games');
     } finally {
       setLoading(false);
     }

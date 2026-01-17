@@ -42,7 +42,8 @@ export default function JoinTeamPage() {
         router.push(`/team/${data.teamId}`);
       } else {
         const data = await res.json();
-        setError(data.error || 'Failed to join team');
+        const errorMsg = typeof data?.error === 'string' ? data.error : 'Failed to join team';
+        setError(errorMsg);
       }
     } catch (err) {
       setError('Something went wrong. Please try again.');

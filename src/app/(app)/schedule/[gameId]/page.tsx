@@ -45,6 +45,7 @@ import { format, formatDistanceToNow, isPast } from 'date-fns';
 import Link from 'next/link';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useRouter } from 'next/navigation';
+import { useError } from '@/components/providers/ErrorProvider';
 
 const MotionCard = motion(Card);
 
@@ -93,6 +94,7 @@ export default function GameDetailPage({
   const { gameId } = use(params);
   const { user } = useAuth();
   const router = useRouter();
+  const { showApiError, showNetworkError } = useError();
   const [game, setGame] = useState<Game | null>(null);
   const [loading, setLoading] = useState(true);
   const [rsvpDialogOpen, setRsvpDialogOpen] = useState(false);
@@ -110,14 +112,20 @@ export default function GameDetailPage({
       const res = await fetch(`/api/games/${gameId}`);
       if (res.ok) {
         const data = await res.json();
-        setGame(data);
-        if (data.userRsvp) {
-          setSelectedStatus(data.userRsvp.status);
-          setComment(data.userRsvp.comment || '');
+        if (data && data.id) {
+          setGame(data);
+          if (data.userRsvp) {
+            setSelectedStatus(data.userRsvp.status);
+            setComment(data.userRsvp.comment || '');
+          }
+        } else {
+          setGame(null);
         }
+      } else {
+        await showApiError(res, 'Failed to load game');
       }
     } catch (error) {
-      console.error('Error fetching game:', error);
+      showNetworkError(error, `/api/games/${gameId}`);
     } finally {
       setLoading(false);
     }

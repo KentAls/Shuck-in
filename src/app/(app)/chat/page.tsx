@@ -27,6 +27,7 @@ import { Send, Groups, Search } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, isToday, isYesterday, formatDistanceToNow } from 'date-fns';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { useError } from '@/components/providers/ErrorProvider';
 
 const MotionBox = motion(Box);
 
@@ -52,6 +53,7 @@ interface Message {
 
 export default function ChatPage() {
   const { user } = useAuth();
+  const { showApiError, showNetworkError } = useError();
   const searchParams = useSearchParams();
   const preselectedTeam = searchParams.get('team');
 
@@ -84,13 +86,17 @@ export default function ChatPage() {
       const res = await fetch('/api/teams');
       if (res.ok) {
         const data = await res.json();
-        setTeams(data);
-        if (!preselectedTeam && data.length > 0) {
-          setSelectedTeamId(data[0].id);
+        if (Array.isArray(data)) {
+          setTeams(data);
+          if (!preselectedTeam && data.length > 0) {
+            setSelectedTeamId(data[0].id);
+          }
         }
+      } else {
+        await showApiError(res, 'Failed to load teams');
       }
     } catch (error) {
-      console.error('Error fetching teams:', error);
+      showNetworkError(error, '/api/teams');
     } finally {
       setLoading(false);
     }
@@ -103,10 +109,12 @@ export default function ChatPage() {
       const res = await fetch(`/api/messages?teamId=${selectedTeamId}`);
       if (res.ok) {
         const data = await res.json();
-        setMessages(data.messages);
+        setMessages(Array.isArray(data.messages) ? data.messages : []);
+      } else {
+        await showApiError(res, 'Failed to load messages');
       }
     } catch (error) {
-      console.error('Error fetching messages:', error);
+      showNetworkError(error, `/api/messages?teamId=${selectedTeamId}`);
     }
   };
 

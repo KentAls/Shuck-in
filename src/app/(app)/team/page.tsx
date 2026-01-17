@@ -30,6 +30,7 @@ import {
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { useError } from '@/components/providers/ErrorProvider';
 
 const MotionCard = motion(Card);
 
@@ -53,6 +54,7 @@ interface Team {
 }
 
 export default function TeamListPage() {
+  const { showApiError, showNetworkError } = useError();
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -67,10 +69,17 @@ export default function TeamListPage() {
       const res = await fetch('/api/teams');
       if (res.ok) {
         const data = await res.json();
-        setTeams(data);
+        if (Array.isArray(data)) {
+          setTeams(data);
+        } else {
+          console.error('Invalid teams data:', data);
+          setTeams([]);
+        }
+      } else {
+        await showApiError(res, 'Failed to load teams');
       }
     } catch (error) {
-      console.error('Error fetching teams:', error);
+      showNetworkError(error, '/api/teams');
     } finally {
       setLoading(false);
     }
@@ -244,7 +253,7 @@ export default function TeamListPage() {
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <Groups sx={{ color: 'text.secondary' }} />
                       <Typography variant="body2" color="text.secondary">
-                        {team._count.members} {team._count.members === 1 ? 'player' : 'players'}
+                        {team._count?.members ?? 0} {(team._count?.members ?? 0) === 1 ? 'player' : 'players'}
                       </Typography>
                     </Box>
 
@@ -253,8 +262,8 @@ export default function TeamListPage() {
                         {team.members.map((member, i) => (
                           <Avatar
                             key={i}
-                            src={member.user.image || undefined}
-                            alt={member.user.name || 'Player'}
+                            src={member.user?.image || undefined}
+                            alt={String(member.user?.name || 'Player')}
                           />
                         ))}
                       </AvatarGroup>
