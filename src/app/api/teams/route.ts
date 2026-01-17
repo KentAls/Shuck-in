@@ -28,7 +28,11 @@ export async function GET(request: NextRequest) {
           },
         },
       },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        sport: true,
+        color: true,
         _count: {
           select: {
             members: {
