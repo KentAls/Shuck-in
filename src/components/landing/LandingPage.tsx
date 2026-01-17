@@ -161,6 +161,9 @@ export default function LandingPage() {
                   <Button
                     variant="outlined"
                     size="large"
+                    onClick={() => {
+                      document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' });
+                    }}
                     sx={{
                       py: 1.5,
                       px: 4,
@@ -250,6 +253,7 @@ export default function LandingPage() {
 
       {/* Features Section */}
       <Box
+        id="features"
         sx={{
           py: { xs: 8, md: 12 },
           background: '#0A0E17',

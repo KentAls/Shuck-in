@@ -23,6 +23,7 @@ import {
   alpha,
   useMediaQuery,
   useTheme,
+  Popover,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -55,6 +56,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [notificationAnchor, setNotificationAnchor] = useState<null | HTMLElement>(null);
 
   const currentNavIndex = navItems.findIndex((item) =>
     pathname.startsWith(item.path)
@@ -70,6 +72,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const handleMenuClose = () => {
     setAnchorEl(null);
+  };
+
+  const handleNotificationOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setNotificationAnchor(event.currentTarget);
+  };
+
+  const handleNotificationClose = () => {
+    setNotificationAnchor(null);
   };
 
   const handleSignOut = () => {
@@ -201,11 +211,44 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               {navItems.find((item) => pathname.startsWith(item.path))?.label || 'Shuck-in'}
             </Typography>
 
-            <IconButton color="inherit" sx={{ mr: 1 }}>
-              <Badge badgeContent={3} color="error">
+            <IconButton color="inherit" sx={{ mr: 1 }} onClick={handleNotificationOpen}>
+              <Badge badgeContent={0} color="error">
                 <Notifications />
               </Badge>
             </IconButton>
+
+            <Popover
+              open={Boolean(notificationAnchor)}
+              anchorEl={notificationAnchor}
+              onClose={handleNotificationClose}
+              anchorOrigin={{
+                vertical: 'bottom',
+                horizontal: 'right',
+              }}
+              transformOrigin={{
+                vertical: 'top',
+                horizontal: 'right',
+              }}
+              PaperProps={{
+                sx: {
+                  mt: 1,
+                  minWidth: 280,
+                  maxWidth: 360,
+                  background: '#1E293B',
+                  border: '1px solid',
+                  borderColor: alpha('#00D9FF', 0.2),
+                },
+              }}
+            >
+              <Box sx={{ p: 2 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+                  Notifications
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 3 }}>
+                  No new notifications
+                </Typography>
+              </Box>
+            </Popover>
 
             <IconButton onClick={handleMenuOpen}>
               <Avatar

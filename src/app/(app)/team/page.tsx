@@ -18,6 +18,12 @@ import {
   alpha,
   Avatar,
   AvatarGroup,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import {
   Add,
@@ -57,6 +63,9 @@ export default function TeamListPage() {
   const [loading, setLoading] = useState(true);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
 
   useEffect(() => {
     fetchTeams();
@@ -91,29 +100,61 @@ export default function TeamListPage() {
   const handleCopyInviteCode = () => {
     if (selectedTeam) {
       navigator.clipboard.writeText(selectedTeam.inviteCode);
-      // Could add a toast notification here
+      setSnackbar({ open: true, message: 'Invite code copied!', severity: 'success' });
     }
     handleMenuClose();
+  };
+
+  const handleDeleteClick = () => {
+    handleMenuClose();
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteTeam = async () => {
+    if (!selectedTeam) return;
+
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/teams/${selectedTeam.id}`, {
+        method: 'DELETE',
+      });
+
+      if (res.ok) {
+        setTeams(teams.filter(t => t.id !== selectedTeam.id));
+        setSnackbar({ open: true, message: 'Team deleted successfully', severity: 'success' });
+      } else {
+        const data = await res.json();
+        setSnackbar({ open: true, message: data.error || 'Failed to delete team', severity: 'error' });
+      }
+    } catch (error) {
+      setSnackbar({ open: true, message: 'Failed to delete team', severity: 'error' });
+    } finally {
+      setDeleting(false);
+      setDeleteDialogOpen(false);
+      setSelectedTeam(null);
+    }
   };
 
   return (
     <Box>
       {/* Header */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 4 }}>
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'stretch', sm: 'center' }, justifyContent: 'space-between', mb: 4, gap: 2 }}>
         <Box>
-          <Typography variant="h4" sx={{ fontWeight: 700 }}>
+          <Typography variant="h4" sx={{ fontWeight: 700, fontSize: { xs: '1.5rem', sm: '2rem' } }}>
             Your Teams
           </Typography>
           <Typography variant="body1" color="text.secondary">
             Manage your teams and players
           </Typography>
         </Box>
-        <Stack direction="row" spacing={2}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 1, sm: 2 }}>
           <Button
             component={Link}
             href="/team/join"
             variant="outlined"
             startIcon={<PersonAdd />}
+            fullWidth
+            sx={{ minWidth: { sm: 'auto' } }}
           >
             Join Team
           </Button>
@@ -122,6 +163,8 @@ export default function TeamListPage() {
             href="/team/new"
             variant="contained"
             startIcon={<Add />}
+            fullWidth
+            sx={{ minWidth: { sm: 'auto' } }}
           >
             Create Team
           </Button>
@@ -298,13 +341,51 @@ export default function TeamListPage() {
           </ListItemIcon>
           Copy Invite Code
         </MenuItem>
-        <MenuItem sx={{ color: 'error.main' }}>
+        <MenuItem onClick={handleDeleteClick} sx={{ color: 'error.main' }}>
           <ListItemIcon>
             <Delete fontSize="small" sx={{ color: 'error.main' }} />
           </ListItemIcon>
           Delete Team
         </MenuItem>
       </Menu>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => !deleting && setDeleteDialogOpen(false)}
+      >
+        <DialogTitle>Delete Team</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete <strong>{selectedTeam?.name}</strong>? This action cannot be undone.
+            All games, RSVPs, and messages will be permanently deleted.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)} disabled={deleting}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteTeam}
+            color="error"
+            variant="contained"
+            disabled={deleting}
+          >
+            {deleting ? 'Deleting...' : 'Delete Team'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+      >
+        <Alert severity={snackbar.severity} onClose={() => setSnackbar({ ...snackbar, open: false })}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

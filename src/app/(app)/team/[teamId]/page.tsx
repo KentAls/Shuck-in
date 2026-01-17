@@ -109,8 +109,9 @@ export default function TeamDetailPage({
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
 
   useEffect(() => {
     fetchTeam();
@@ -143,8 +144,63 @@ export default function TeamDetailPage({
   const handleCopyInviteCode = () => {
     if (team) {
       navigator.clipboard.writeText(team.inviteCode);
-      setSnackbarMessage('Invite code copied to clipboard!');
-      setSnackbarOpen(true);
+      setSnackbar({ open: true, message: 'Invite code copied to clipboard!', severity: 'success' });
+    }
+  };
+
+  const handleMakeAdmin = async () => {
+    if (!selectedMember || !team) return;
+
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/teams/${team.id}/members/${selectedMember.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: 'ADMIN' }),
+      });
+
+      if (res.ok) {
+        setSnackbar({ open: true, message: `${selectedMember.user.name || 'Member'} is now an admin`, severity: 'success' });
+        fetchTeam(); // Refresh team data
+      } else {
+        const data = await res.json();
+        setSnackbar({ open: true, message: data.error || 'Failed to update role', severity: 'error' });
+      }
+    } catch (error) {
+      setSnackbar({ open: true, message: 'Failed to update role', severity: 'error' });
+    } finally {
+      setActionLoading(false);
+      handleMemberMenuClose();
+    }
+  };
+
+  const handleRemoveClick = () => {
+    handleMemberMenuClose();
+    setRemoveDialogOpen(true);
+  };
+
+  const handleRemoveMember = async () => {
+    if (!selectedMember || !team) return;
+
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/teams/${team.id}/members/${selectedMember.id}`, {
+        method: 'DELETE',
+      });
+
+      if (res.ok) {
+        setSnackbar({ open: true, message: `${selectedMember.user.name || 'Member'} has been removed`, severity: 'success' });
+        fetchTeam(); // Refresh team data
+      } else {
+        const data = await res.json();
+        setSnackbar({ open: true, message: data.error || 'Failed to remove member', severity: 'error' });
+      }
+    } catch (error) {
+      setSnackbar({ open: true, message: 'Failed to remove member', severity: 'error' });
+    } finally {
+      setActionLoading(false);
+      setRemoveDialogOpen(false);
+      setSelectedMember(null);
     }
   };
 
@@ -186,14 +242,15 @@ export default function TeamDetailPage({
           Back to Teams
         </Button>
 
-        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'stretch', sm: 'flex-start' }, justifyContent: 'space-between', gap: 2 }}>
           <Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
-              <Typography variant="h4" sx={{ fontWeight: 700 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 2 }, mb: 1, flexWrap: 'wrap' }}>
+              <Typography variant="h4" sx={{ fontWeight: 700, fontSize: { xs: '1.5rem', sm: '2rem' } }}>
                 {team.name}
               </Typography>
               <Chip
                 label={team.sport}
+                size="small"
                 sx={{
                   backgroundColor: alpha(team.color, 0.15),
                   color: team.color,
@@ -209,11 +266,13 @@ export default function TeamDetailPage({
           </Box>
 
           {canManageTeam && (
-            <Stack direction="row" spacing={1}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ width: { xs: '100%', sm: 'auto' } }}>
               <Button
                 variant="outlined"
                 startIcon={<Share />}
                 onClick={() => setInviteDialogOpen(true)}
+                fullWidth
+                sx={{ minWidth: { sm: 'auto' } }}
               >
                 Invite Players
               </Button>
@@ -222,6 +281,8 @@ export default function TeamDetailPage({
                 href={`/team/${teamId}/edit`}
                 variant="outlined"
                 startIcon={<Edit />}
+                fullWidth
+                sx={{ minWidth: { sm: 'auto' } }}
               >
                 Edit
               </Button>
@@ -391,20 +452,81 @@ export default function TeamDetailPage({
           },
         }}
       >
-        <MenuItem>
-          <ListItemIcon>
-            <AdminPanelSettings fontSize="small" />
-          </ListItemIcon>
-          Make Admin
-        </MenuItem>
+        {selectedMember?.role === 'PLAYER' && team?.userRole === 'OWNER' && (
+          <MenuItem onClick={handleMakeAdmin} disabled={actionLoading}>
+            <ListItemIcon>
+              <AdminPanelSettings fontSize="small" />
+            </ListItemIcon>
+            Make Admin
+          </MenuItem>
+        )}
+        {selectedMember?.role === 'ADMIN' && team?.userRole === 'OWNER' && (
+          <MenuItem
+            onClick={async () => {
+              if (!selectedMember || !team) return;
+              setActionLoading(true);
+              try {
+                const res = await fetch(`/api/teams/${team.id}/members/${selectedMember.id}`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ role: 'PLAYER' }),
+                });
+                if (res.ok) {
+                  setSnackbar({ open: true, message: `${selectedMember.user.name || 'Member'} is now a player`, severity: 'success' });
+                  fetchTeam();
+                } else {
+                  const data = await res.json();
+                  setSnackbar({ open: true, message: data.error || 'Failed to update role', severity: 'error' });
+                }
+              } catch {
+                setSnackbar({ open: true, message: 'Failed to update role', severity: 'error' });
+              } finally {
+                setActionLoading(false);
+                handleMemberMenuClose();
+              }
+            }}
+            disabled={actionLoading}
+          >
+            <ListItemIcon>
+              <AdminPanelSettings fontSize="small" />
+            </ListItemIcon>
+            Remove Admin
+          </MenuItem>
+        )}
         <Divider />
-        <MenuItem sx={{ color: 'error.main' }}>
+        <MenuItem onClick={handleRemoveClick} sx={{ color: 'error.main' }} disabled={actionLoading}>
           <ListItemIcon>
             <PersonRemove fontSize="small" sx={{ color: 'error.main' }} />
           </ListItemIcon>
           Remove from Team
         </MenuItem>
       </Menu>
+
+      {/* Remove Member Confirmation Dialog */}
+      <Dialog
+        open={removeDialogOpen}
+        onClose={() => !actionLoading && setRemoveDialogOpen(false)}
+      >
+        <DialogTitle>Remove Team Member</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to remove <strong>{selectedMember?.user.name || 'this member'}</strong> from the team?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRemoveDialogOpen(false)} disabled={actionLoading}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleRemoveMember}
+            color="error"
+            variant="contained"
+            disabled={actionLoading}
+          >
+            {actionLoading ? 'Removing...' : 'Remove'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Invite Dialog */}
       <Dialog
@@ -459,11 +581,14 @@ export default function TeamDetailPage({
 
       {/* Snackbar */}
       <Snackbar
-        open={snackbarOpen}
+        open={snackbar.open}
         autoHideDuration={3000}
-        onClose={() => setSnackbarOpen(false)}
-        message={snackbarMessage}
-      />
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+      >
+        <Alert severity={snackbar.severity} onClose={() => setSnackbar({ ...snackbar, open: false })}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

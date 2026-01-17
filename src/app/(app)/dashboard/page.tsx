@@ -156,54 +156,54 @@ export default function DashboardPage() {
       </Box>
 
       {/* Quick Stats */}
-      <Grid container spacing={2} sx={{ mb: 4 }}>
-        <Grid item xs={6} md={3}>
+      <Grid container spacing={{ xs: 1, sm: 2 }} sx={{ mb: 4 }}>
+        <Grid item xs={6} sm={6} md={3}>
           <Card sx={{ background: `linear-gradient(135deg, ${alpha('#00D9FF', 0.15)} 0%, ${alpha('#00D9FF', 0.05)} 100%)` }}>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <Groups sx={{ fontSize: 40, color: '#00D9FF', mb: 1 }} />
-              <Typography variant="h4" sx={{ fontWeight: 700 }}>
+            <CardContent sx={{ textAlign: 'center', p: { xs: 1.5, sm: 2 } }}>
+              <Groups sx={{ fontSize: { xs: 32, sm: 40 }, color: '#00D9FF', mb: 0.5 }} />
+              <Typography sx={{ fontWeight: 700, fontSize: { xs: '1.5rem', sm: '2rem' } }}>
                 {teams.length}
               </Typography>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                 Teams
               </Typography>
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={6} md={3}>
+        <Grid item xs={6} sm={6} md={3}>
           <Card sx={{ background: `linear-gradient(135deg, ${alpha('#FF3366', 0.15)} 0%, ${alpha('#FF3366', 0.05)} 100%)` }}>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <CalendarMonth sx={{ fontSize: 40, color: '#FF3366', mb: 1 }} />
-              <Typography variant="h4" sx={{ fontWeight: 700 }}>
+            <CardContent sx={{ textAlign: 'center', p: { xs: 1.5, sm: 2 } }}>
+              <CalendarMonth sx={{ fontSize: { xs: 32, sm: 40 }, color: '#FF3366', mb: 0.5 }} />
+              <Typography sx={{ fontWeight: 700, fontSize: { xs: '1.5rem', sm: '2rem' } }}>
                 {upcomingGames.length}
               </Typography>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                 Upcoming
               </Typography>
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={6} md={3}>
+        <Grid item xs={6} sm={6} md={3}>
           <Card sx={{ background: `linear-gradient(135deg, ${alpha('#00FF94', 0.15)} 0%, ${alpha('#00FF94', 0.05)} 100%)` }}>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <EmojiEvents sx={{ fontSize: 40, color: '#00FF94', mb: 1 }} />
-              <Typography variant="h4" sx={{ fontWeight: 700 }}>
+            <CardContent sx={{ textAlign: 'center', p: { xs: 1.5, sm: 2 } }}>
+              <EmojiEvents sx={{ fontSize: { xs: 32, sm: 40 }, color: '#00FF94', mb: 0.5 }} />
+              <Typography sx={{ fontWeight: 700, fontSize: { xs: '1.5rem', sm: '2rem' } }}>
                 {userStats.gamesPlayed}
               </Typography>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                 Games Played
               </Typography>
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={6} md={3}>
+        <Grid item xs={6} sm={6} md={3}>
           <Card sx={{ background: `linear-gradient(135deg, ${alpha('#FFB800', 0.15)} 0%, ${alpha('#FFB800', 0.05)} 100%)` }}>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <TrendingUp sx={{ fontSize: 40, color: '#FFB800', mb: 1 }} />
-              <Typography variant="h4" sx={{ fontWeight: 700 }}>
+            <CardContent sx={{ textAlign: 'center', p: { xs: 1.5, sm: 2 } }}>
+              <TrendingUp sx={{ fontSize: { xs: 32, sm: 40 }, color: '#FFB800', mb: 0.5 }} />
+              <Typography sx={{ fontWeight: 700, fontSize: { xs: '1.5rem', sm: '2rem' } }}>
                 {userStats.attendanceRate}%
               </Typography>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                 Attendance
               </Typography>
             </CardContent>
