@@ -94,7 +94,6 @@ export default function TeamListPage() {
 
   const handleMenuClose = () => {
     setAnchorEl(null);
-    setSelectedTeam(null);
   };
 
   const handleCopyInviteCode = () => {
@@ -106,7 +105,7 @@ export default function TeamListPage() {
   };
 
   const handleDeleteClick = () => {
-    handleMenuClose();
+    setAnchorEl(null);
     setDeleteDialogOpen(true);
   };
 
