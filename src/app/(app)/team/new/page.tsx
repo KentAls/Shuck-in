@@ -20,7 +20,7 @@ import {
 import { ArrowBack, SportsSoccer, SportsHockey, SportsBasketball, SportsTennis } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import ErrorDetailsDialog, { ErrorDetails } from '@/components/common/ErrorDetailsDialog';
+import { useError } from '@/components/providers/ErrorProvider';
 
 const MotionCard = motion(Card);
 
@@ -48,6 +48,7 @@ const colors = [
 
 export default function CreateTeamPage() {
   const router = useRouter();
+  const { showApiError, showNetworkError } = useError();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -55,8 +56,6 @@ export default function CreateTeamPage() {
     description: '',
     color: colors[0],
   });
-  const [errorDialogOpen, setErrorDialogOpen] = useState(false);
-  const [errorDetails, setErrorDetails] = useState<ErrorDetails | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,54 +72,10 @@ export default function CreateTeamPage() {
         const team = await res.json();
         router.push(`/team/${team.id}`);
       } else {
-        // Try to parse JSON error response, fall back to text if not JSON
-        let errorData: unknown;
-        let errorMessage = 'Failed to create team';
-
-        const contentType = res.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          try {
-            errorData = await res.json();
-            errorMessage = (errorData as { error?: string })?.error || errorMessage;
-          } catch {
-            errorData = { parseError: 'Failed to parse JSON response' };
-          }
-        } else {
-          // Non-JSON response (HTML error page, plain text, etc.)
-          try {
-            const textBody = await res.text();
-            errorData = { rawResponse: textBody.slice(0, 500) }; // Truncate long HTML
-            errorMessage = `Server error (${res.status})`;
-          } catch {
-            errorData = { parseError: 'Failed to read response body' };
-          }
-        }
-
-        console.error('Error creating team:', errorData);
-        setErrorDetails({
-          message: errorMessage,
-          status: res.status,
-          details: errorData,
-          timestamp: new Date().toISOString(),
-          path: '/api/teams',
-        });
-        setErrorDialogOpen(true);
+        await showApiError(res, 'Failed to create team');
       }
     } catch (error) {
-      // Network errors, CORS issues, DNS failures, etc.
-      console.error('Error creating team:', error);
-      setErrorDetails({
-        message: error instanceof Error ? error.message : 'Network error occurred',
-        status: 0,
-        details: {
-          type: 'NetworkError',
-          name: error instanceof Error ? error.name : 'Unknown',
-          stack: error instanceof Error ? error.stack : undefined,
-        },
-        timestamp: new Date().toISOString(),
-        path: '/api/teams',
-      });
-      setErrorDialogOpen(true);
+      showNetworkError(error, '/api/teams');
     } finally {
       setLoading(false);
     }
@@ -252,13 +207,6 @@ export default function CreateTeamPage() {
           </form>
         </CardContent>
       </MotionCard>
-
-      <ErrorDetailsDialog
-        open={errorDialogOpen}
-        onClose={() => setErrorDialogOpen(false)}
-        error={errorDetails}
-        title="Failed to Create Team"
-      />
     </Box>
   );
 }
