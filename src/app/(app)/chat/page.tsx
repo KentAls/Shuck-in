@@ -1,15 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   Box,
   Grid,
-  Card,
-  CardContent,
   Typography,
   TextField,
-  Button,
   Avatar,
   Stack,
   Skeleton,
@@ -21,11 +18,12 @@ import {
   Badge,
   alpha,
   InputAdornment,
-  Divider,
+  Fab,
+  Zoom,
 } from '@mui/material';
-import { Send, Groups, Search } from '@mui/icons-material';
+import { Send, Groups, KeyboardArrowDown } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
-import { format, isToday, isYesterday, formatDistanceToNow } from 'date-fns';
+import { format, isToday, isYesterday } from 'date-fns';
 import { useAuth } from '@/components/providers/AuthProvider';
 
 const MotionBox = motion(Box);
@@ -43,6 +41,9 @@ interface Message {
   id: string;
   content: string;
   createdAt: string;
+  isChirper?: boolean;
+  chirperName?: string;
+  chirperAvatar?: string;
   user: {
     id: string;
     name: string | null;
@@ -61,9 +62,33 @@ export default function ChatPage() {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [isNearBottom, setIsNearBottom] = useState(true);
+  const [hasNewMessages, setHasNewMessages] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const previousMessagesLengthRef = useRef(0);
+
+  // Check if user is near the bottom of the chat
+  const checkIfNearBottom = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return true;
+
+    const threshold = 100; // pixels from bottom
+    const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+    return distanceFromBottom < threshold;
+  }, []);
+
+  // Handle scroll events
+  const handleScroll = useCallback(() => {
+    const nearBottom = checkIfNearBottom();
+    setIsNearBottom(nearBottom);
+
+    // Clear the new messages indicator if user scrolls to bottom
+    if (nearBottom) {
+      setHasNewMessages(false);
+    }
+  }, [checkIfNearBottom]);
 
   useEffect(() => {
     fetchTeams();
@@ -77,6 +102,8 @@ export default function ChatPage() {
   useEffect(() => {
     if (selectedTeamId) {
       fetchMessages(true);
+      setIsNearBottom(true);
+      setHasNewMessages(false);
     }
   }, [selectedTeamId]);
 
@@ -91,6 +118,14 @@ export default function ChatPage() {
     return () => clearInterval(pollInterval);
   }, [selectedTeamId]);
 
+  // Add scroll event listener
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (container) {
+      container.addEventListener('scroll', handleScroll);
+      return () => container.removeEventListener('scroll', handleScroll);
+    }
+  }, [handleScroll]);
 
   const fetchTeams = async () => {
     try {
@@ -117,11 +152,22 @@ export default function ChatPage() {
       if (res.ok) {
         const data = await res.json();
         const newMessages = data.messages as Message[];
-        const hasNewMessages = newMessages.length > messages.length;
+        const hadNewMessages = newMessages.length > previousMessagesLengthRef.current;
+
+        previousMessagesLengthRef.current = newMessages.length;
         setMessages(newMessages);
-        // Only scroll on initial load or when new messages arrive
-        if (initialLoad || hasNewMessages) {
+
+        // Only auto-scroll on initial load or when user sends their own message
+        if (initialLoad) {
           setTimeout(() => scrollToBottom(), 100);
+        } else if (hadNewMessages) {
+          // Check if we should auto-scroll
+          if (isNearBottom) {
+            setTimeout(() => scrollToBottom(), 100);
+          } else {
+            // Show indicator that there are new messages
+            setHasNewMessages(true);
+          }
         }
       }
     } catch (error) {
@@ -131,6 +177,7 @@ export default function ChatPage() {
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    setHasNewMessages(false);
   };
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -153,6 +200,9 @@ export default function ChatPage() {
       },
     };
     setMessages((prev) => [...prev, optimisticMessage]);
+
+    // Always scroll to bottom when user sends a message
+    setTimeout(() => scrollToBottom(), 100);
 
     try {
       const res = await fetch('/api/messages', {
@@ -259,7 +309,7 @@ export default function ChatPage() {
         </Grid>
 
         {/* Chat Area */}
-        <Grid item xs={12} md={9} sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <Grid item xs={12} md={9} sx={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
           {selectedTeam ? (
             <>
               {/* Chat Header */}
@@ -300,6 +350,7 @@ export default function ChatPage() {
                   p: 2,
                   display: 'flex',
                   flexDirection: 'column',
+                  position: 'relative',
                 }}
               >
                 {messages.length === 0 ? (
@@ -325,9 +376,11 @@ export default function ChatPage() {
                     <AnimatePresence>
                       {messages.map((message, index) => {
                         const isOwn = message.user.id === user?.id;
+                        const isChirper = message.isChirper;
                         const showAvatar =
                           index === 0 ||
-                          messages[index - 1]?.user.id !== message.user.id;
+                          messages[index - 1]?.user.id !== message.user.id ||
+                          messages[index - 1]?.isChirper !== message.isChirper;
 
                         return (
                           <MotionBox
@@ -343,12 +396,13 @@ export default function ChatPage() {
                           >
                             {!isOwn && (
                               <Avatar
-                                src={message.user.image || undefined}
-                                alt={message.user.name || 'User'}
+                                src={isChirper ? message.chirperAvatar : message.user.image || undefined}
+                                alt={isChirper ? message.chirperName : message.user.name || 'User'}
                                 sx={{
                                   width: 32,
                                   height: 32,
                                   visibility: showAvatar ? 'visible' : 'hidden',
+                                  border: isChirper ? '2px solid gold' : undefined,
                                 }}
                               />
                             )}
@@ -361,10 +415,11 @@ export default function ChatPage() {
                               {showAvatar && !isOwn && (
                                 <Typography
                                   variant="caption"
-                                  color="text.secondary"
-                                  sx={{ ml: 1, display: 'block', mb: 0.5 }}
+                                  color={isChirper ? 'warning.main' : 'text.secondary'}
+                                  sx={{ ml: 1, display: 'block', mb: 0.5, fontWeight: isChirper ? 600 : 400 }}
                                 >
-                                  {message.user.name}
+                                  {isChirper ? message.chirperName : message.user.name}
+                                  {isChirper && ' ⭐'}
                                 </Typography>
                               )}
                               <Box
@@ -374,10 +429,14 @@ export default function ChatPage() {
                                   borderRadius: 3,
                                   backgroundColor: isOwn
                                     ? selectedTeam.color
+                                    : isChirper
+                                    ? alpha('#FFD700', 0.15)
                                     : alpha('#FFFFFF', 0.1),
                                   color: isOwn ? '#000' : '#FFF',
                                   borderTopLeftRadius: !isOwn && !showAvatar ? 8 : undefined,
                                   borderTopRightRadius: isOwn && !showAvatar ? 8 : undefined,
+                                  border: isChirper ? '1px solid' : undefined,
+                                  borderColor: isChirper ? alpha('#FFD700', 0.3) : undefined,
                                 }}
                               >
                                 <Typography variant="body2" sx={{ wordBreak: 'break-word' }}>
@@ -405,6 +464,29 @@ export default function ChatPage() {
                   </Stack>
                 )}
               </Box>
+
+              {/* Scroll to bottom FAB */}
+              <Zoom in={!isNearBottom || hasNewMessages}>
+                <Fab
+                  size="small"
+                  color={hasNewMessages ? 'primary' : 'default'}
+                  onClick={scrollToBottom}
+                  sx={{
+                    position: 'absolute',
+                    bottom: 80,
+                    right: 16,
+                    zIndex: 10,
+                  }}
+                >
+                  <Badge
+                    variant="dot"
+                    color="error"
+                    invisible={!hasNewMessages}
+                  >
+                    <KeyboardArrowDown />
+                  </Badge>
+                </Fab>
+              </Zoom>
 
               {/* Message Input */}
               <Box

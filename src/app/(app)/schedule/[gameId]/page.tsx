@@ -39,6 +39,7 @@ import {
   HelpOutline,
   Download,
   Message,
+  EmojiEvents,
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { format, formatDistanceToNow, isPast } from 'date-fns';
@@ -74,6 +75,9 @@ interface Game {
   gameType: string;
   notes: string | null;
   rsvpDeadline: string | null;
+  teamScore: number | null;
+  opponentScore: number | null;
+  result: 'WIN' | 'LOSS' | 'TIE' | null;
   team: {
     id: string;
     name: string;
@@ -100,6 +104,9 @@ export default function GameDetailPage({
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
+  const [scoreDialogOpen, setScoreDialogOpen] = useState(false);
+  const [teamScoreInput, setTeamScoreInput] = useState<string>('');
+  const [opponentScoreInput, setOpponentScoreInput] = useState<string>('');
 
   useEffect(() => {
     fetchGame();
@@ -182,6 +189,44 @@ export default function GameDetailPage({
 
   const handleDownloadCalendar = () => {
     window.open(`/api/games/${gameId}/calendar`, '_blank');
+  };
+
+  const openScoreDialog = () => {
+    if (game) {
+      setTeamScoreInput(game.teamScore?.toString() || '');
+      setOpponentScoreInput(game.opponentScore?.toString() || '');
+    }
+    setScoreDialogOpen(true);
+  };
+
+  const handleScoreSubmit = async () => {
+    if (!game) return;
+    setSubmitting(true);
+
+    try {
+      const teamScore = teamScoreInput ? parseInt(teamScoreInput, 10) : null;
+      const opponentScore = opponentScoreInput ? parseInt(opponentScoreInput, 10) : null;
+
+      const res = await fetch(`/api/games/${gameId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ teamScore, opponentScore }),
+      });
+
+      if (res.ok) {
+        const updatedGame = await res.json();
+        setGame({ ...game, ...updatedGame });
+        setScoreDialogOpen(false);
+        setSnackbar({ open: true, message: 'Score saved!', severity: 'success' });
+      } else {
+        const data = await res.json();
+        setSnackbar({ open: true, message: data.error || 'Failed to save score', severity: 'error' });
+      }
+    } catch (error) {
+      setSnackbar({ open: true, message: 'Something went wrong', severity: 'error' });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const canManageGame = game?.userRole === 'OWNER' || game?.userRole === 'ADMIN';
@@ -557,6 +602,68 @@ export default function GameDetailPage({
             </CardContent>
           </Card>
 
+          {/* Game Score (for past games) */}
+          {isPastGame && game.gameType === 'GAME' && (
+            <Card sx={{ mb: 3 }}>
+              <CardContent sx={{ p: 3 }}>
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <EmojiEvents sx={{ color: '#FFD700' }} />
+                  Final Score
+                </Typography>
+
+                {game.teamScore !== null && game.opponentScore !== null ? (
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, mb: 2 }}>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary">{game.team.name}</Typography>
+                        <Typography variant="h3" sx={{ fontWeight: 700, color: game.team.color }}>
+                          {game.teamScore}
+                        </Typography>
+                      </Box>
+                      <Typography variant="h4" color="text.secondary">-</Typography>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary">{game.opponent || 'Opponent'}</Typography>
+                        <Typography variant="h3" sx={{ fontWeight: 700 }}>
+                          {game.opponentScore}
+                        </Typography>
+                      </Box>
+                    </Box>
+                    <Chip
+                      label={game.result}
+                      size="small"
+                      color={game.result === 'WIN' ? 'success' : game.result === 'LOSS' ? 'error' : 'default'}
+                      sx={{ fontWeight: 600 }}
+                    />
+                    {canManageGame && (
+                      <Button
+                        size="small"
+                        onClick={openScoreDialog}
+                        sx={{ ml: 2 }}
+                      >
+                        Edit Score
+                      </Button>
+                    )}
+                  </Box>
+                ) : (
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      No score recorded yet
+                    </Typography>
+                    {canManageGame && (
+                      <Button
+                        variant="contained"
+                        startIcon={<EmojiEvents />}
+                        onClick={openScoreDialog}
+                      >
+                        Enter Score
+                      </Button>
+                    )}
+                  </Box>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Actions */}
           <Card>
             <CardContent sx={{ p: 3 }}>
@@ -586,6 +693,43 @@ export default function GameDetailPage({
           </Card>
         </Grid>
       </Grid>
+
+      {/* Score Dialog */}
+      <Dialog open={scoreDialogOpen} onClose={() => setScoreDialogOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Enter Game Score</DialogTitle>
+        <DialogContent>
+          <Stack spacing={3} sx={{ mt: 1 }}>
+            <TextField
+              label={game?.team.name || 'Your Team'}
+              type="number"
+              value={teamScoreInput}
+              onChange={(e) => setTeamScoreInput(e.target.value)}
+              inputProps={{ min: 0 }}
+              fullWidth
+            />
+            <TextField
+              label={game?.opponent || 'Opponent'}
+              type="number"
+              value={opponentScoreInput}
+              onChange={(e) => setOpponentScoreInput(e.target.value)}
+              inputProps={{ min: 0 }}
+              fullWidth
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setScoreDialogOpen(false)} disabled={submitting}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleScoreSubmit}
+            variant="contained"
+            disabled={submitting}
+          >
+            {submitting ? 'Saving...' : 'Save Score'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Snackbar */}
       <Snackbar

@@ -43,6 +43,8 @@ import {
   Phone,
   SportsSoccer,
   PhotoLibrary,
+  AutoAwesome,
+  EmojiEvents,
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
@@ -84,6 +86,16 @@ interface Team {
   };
 }
 
+interface Game {
+  id: string;
+  title: string;
+  opponent: string | null;
+  startTime: string;
+  teamScore: number | null;
+  opponentScore: number | null;
+  result: 'WIN' | 'LOSS' | 'TIE' | null;
+}
+
 interface TabPanelProps {
   children?: React.ReactNode;
   index: number;
@@ -106,6 +118,7 @@ export default function TeamDetailPage({
   const { teamId } = params;
   const { user } = useAuth();
   const [team, setTeam] = useState<Team | null>(null);
+  const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
   const [tabValue, setTabValue] = useState(0);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -117,6 +130,7 @@ export default function TeamDetailPage({
 
   useEffect(() => {
     fetchTeam();
+    fetchGames();
   }, [teamId]);
 
   const fetchTeam = async () => {
@@ -130,6 +144,18 @@ export default function TeamDetailPage({
       console.error('Error fetching team:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchGames = async () => {
+    try {
+      const res = await fetch(`/api/games?teamId=${teamId}&past=true`);
+      if (res.ok) {
+        const data = await res.json();
+        setGames(data.games || []);
+      }
+    } catch (error) {
+      console.error('Error fetching games:', error);
     }
   };
 
@@ -297,6 +323,16 @@ export default function TeamDetailPage({
                 sx={{ minWidth: { sm: 'auto' } }}
               >
                 Invite Players
+              </Button>
+              <Button
+                component={Link}
+                href={`/team/${teamId}/chirpers`}
+                variant="outlined"
+                startIcon={<AutoAwesome sx={{ color: '#FFD700' }} />}
+                fullWidth
+                sx={{ minWidth: { sm: 'auto' } }}
+              >
+                Chirpers
               </Button>
               <Button
                 component={Link}
@@ -471,11 +507,103 @@ export default function TeamDetailPage({
 
       {/* Stats Tab */}
       <TabPanel value={tabValue} index={3}>
-        <Box sx={{ textAlign: 'center', py: 4 }}>
-          <Typography variant="body1" color="text.secondary">
-            Stats coming soon...
-          </Typography>
-        </Box>
+        {(() => {
+          const gamesWithScores = games.filter(g => g.teamScore !== null);
+          const wins = gamesWithScores.filter(g => g.result === 'WIN').length;
+          const losses = gamesWithScores.filter(g => g.result === 'LOSS').length;
+          const ties = gamesWithScores.filter(g => g.result === 'TIE').length;
+
+          return (
+            <Box>
+              {/* Season Record */}
+              <Card sx={{ mb: 3 }}>
+                <CardContent>
+                  <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
+                    Season Record
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid item xs={4}>
+                      <Box sx={{ textAlign: 'center' }}>
+                        <Typography variant="h3" sx={{ fontWeight: 700, color: 'success.main' }}>
+                          {wins}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">Wins</Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={4}>
+                      <Box sx={{ textAlign: 'center' }}>
+                        <Typography variant="h3" sx={{ fontWeight: 700, color: 'error.main' }}>
+                          {losses}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">Losses</Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={4}>
+                      <Box sx={{ textAlign: 'center' }}>
+                        <Typography variant="h3" sx={{ fontWeight: 700, color: 'text.secondary' }}>
+                          {ties}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">Ties</Typography>
+                      </Box>
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
+
+              {/* Game Results */}
+              <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
+                Game Results
+              </Typography>
+              {gamesWithScores.length === 0 ? (
+                <Card>
+                  <CardContent sx={{ textAlign: 'center', py: 4 }}>
+                    <EmojiEvents sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />
+                    <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
+                      No game scores recorded yet
+                    </Typography>
+                    {canManageTeam && (
+                      <Typography variant="body2" color="text.secondary">
+                        Go to Schedule to add scores for past games
+                      </Typography>
+                    )}
+                  </CardContent>
+                </Card>
+              ) : (
+                <Stack spacing={2}>
+                  {gamesWithScores.map((game) => (
+                    <Card key={game.id}>
+                      <CardContent>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <Box>
+                            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                              vs {game.opponent || 'Opponent'}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {new Date(game.startTime).toLocaleDateString()}
+                            </Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                            <Box sx={{ textAlign: 'center' }}>
+                              <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                                {game.teamScore} - {game.opponentScore}
+                              </Typography>
+                            </Box>
+                            <Chip
+                              label={game.result}
+                              size="small"
+                              color={game.result === 'WIN' ? 'success' : game.result === 'LOSS' ? 'error' : 'default'}
+                              sx={{ fontWeight: 600 }}
+                            />
+                          </Box>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </Stack>
+              )}
+            </Box>
+          );
+        })()}
       </TabPanel>
 
       {/* Member Menu */}
