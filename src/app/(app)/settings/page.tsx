@@ -65,14 +65,32 @@ export default function SettingsPage() {
     chatNotifications: true,
   });
   const [browserNotificationPermission, setBrowserNotificationPermission] = useState<NotificationPermission>('default');
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     fetchProfile();
+    fetchTeams();
     // Check browser notification permission
     if ('Notification' in window) {
       setBrowserNotificationPermission(Notification.permission);
     }
   }, []);
+
+  const fetchTeams = async () => {
+    try {
+      const res = await fetch('/api/teams');
+      if (res.ok) {
+        const teams = await res.json();
+        // Check if user is admin/owner of any team
+        const hasAdminRole = teams.some((t: { userRole: string | null }) =>
+          t.userRole === 'OWNER' || t.userRole === 'ADMIN'
+        );
+        setIsAdmin(hasAdminRole);
+      }
+    } catch (error) {
+      console.error('Error fetching teams:', error);
+    }
+  };
 
   const handleEnableBrowserNotifications = async () => {
     if (!('Notification' in window)) {
@@ -434,36 +452,38 @@ export default function SettingsPage() {
           </CardContent>
         </MotionCard>
 
-        {/* Developer Section */}
-        <MotionCard
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-        >
-          <CardContent sx={{ p: 4 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-              <BugReport sx={{ color: '#FFB800' }} />
-              <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                Developer
-              </Typography>
-            </Box>
+        {/* Developer Section - Admin Only */}
+        {isAdmin && (
+          <MotionCard
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+          >
+            <CardContent sx={{ p: 4 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+                <BugReport sx={{ color: '#FFB800' }} />
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                  Developer
+                </Typography>
+              </Box>
 
-            <Stack spacing={2}>
-              <Button
-                component={Link}
-                href="/debug"
-                variant="outlined"
-                startIcon={<BugReport />}
-                sx={{ alignSelf: 'flex-start' }}
-              >
-                Debug Info
-              </Button>
-              <Typography variant="body2" color="text.secondary">
-                View diagnostic information about your account, teams, and games
-              </Typography>
-            </Stack>
-          </CardContent>
-        </MotionCard>
+              <Stack spacing={2}>
+                <Button
+                  component={Link}
+                  href="/debug"
+                  variant="outlined"
+                  startIcon={<BugReport />}
+                  sx={{ alignSelf: 'flex-start' }}
+                >
+                  Debug Info
+                </Button>
+                <Typography variant="body2" color="text.secondary">
+                  View diagnostic information about your account, teams, and games
+                </Typography>
+              </Stack>
+            </CardContent>
+          </MotionCard>
+        )}
       </Stack>
 
       <Snackbar
