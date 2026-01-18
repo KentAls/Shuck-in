@@ -10,6 +10,9 @@ const updateUserSchema = z.object({
   phone: z.string().max(20).optional().nullable(),
   jerseyNumber: z.string().max(10).optional().nullable(),
   position: z.string().max(50).optional().nullable(),
+  smsReminders: z.boolean().optional(),
+  emailReminders: z.boolean().optional(),
+  chatNotifications: z.boolean().optional(),
 });
 
 export async function GET(request: NextRequest) {
@@ -30,6 +33,9 @@ export async function GET(request: NextRequest) {
         jerseyNumber: true,
         position: true,
         createdAt: true,
+        smsReminders: true,
+        emailReminders: true,
+        chatNotifications: true,
       },
     });
 
@@ -65,6 +71,9 @@ export async function PATCH(request: NextRequest) {
         phone: true,
         jerseyNumber: true,
         position: true,
+        smsReminders: true,
+        emailReminders: true,
+        chatNotifications: true,
       },
     });
 

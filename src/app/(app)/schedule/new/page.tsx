@@ -16,6 +16,8 @@ import {
   MenuItem,
   alpha,
   Grid,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import { ArrowBack, CalendarMonth, SportsSoccer } from '@mui/icons-material';
 import { motion } from 'framer-motion';
@@ -46,6 +48,7 @@ export default function NewGamePage() {
 
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     teamId: preselectedTeam || '',
     title: '',
@@ -81,6 +84,7 @@ export default function NewGamePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
 
     try {
       const res = await fetch('/api/games', {
@@ -101,11 +105,11 @@ export default function NewGamePage() {
         const game = await res.json();
         router.push(`/schedule/${game.id}`);
       } else {
-        const error = await res.json();
-        console.error('Error creating game:', error);
+        const data = await res.json();
+        setError(data.error || 'Failed to create event');
       }
-    } catch (error) {
-      console.error('Error creating game:', error);
+    } catch (err) {
+      setError('Network error. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -314,6 +318,17 @@ export default function NewGamePage() {
           </form>
         </CardContent>
       </MotionCard>
+
+      {/* Error Snackbar */}
+      <Snackbar
+        open={!!error}
+        autoHideDuration={6000}
+        onClose={() => setError(null)}
+      >
+        <Alert severity="error" onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

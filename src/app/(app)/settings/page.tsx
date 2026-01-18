@@ -39,6 +39,9 @@ interface UserProfile {
   phone: string | null;
   jerseyNumber: string | null;
   position: string | null;
+  smsReminders: boolean;
+  emailReminders: boolean;
+  chatNotifications: boolean;
 }
 
 export default function SettingsPage() {
@@ -46,6 +49,7 @@ export default function SettingsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingNotifications, setSavingNotifications] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
   const [formData, setFormData] = useState({
     name: '',
@@ -73,6 +77,11 @@ export default function SettingsPage() {
           phone: data.phone || '',
           jerseyNumber: data.jerseyNumber || '',
           position: data.position || '',
+        });
+        setNotifications({
+          smsReminders: data.smsReminders,
+          emailReminders: data.emailReminders,
+          chatNotifications: data.chatNotifications,
         });
       }
     } catch (error) {
@@ -108,6 +117,32 @@ export default function SettingsPage() {
       setSnackbar({ open: true, message: 'Something went wrong', severity: 'error' });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveNotifications = async () => {
+    setSavingNotifications(true);
+
+    try {
+      const res = await fetch('/api/user', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          smsReminders: notifications.smsReminders,
+          emailReminders: notifications.emailReminders,
+          chatNotifications: notifications.chatNotifications,
+        }),
+      });
+
+      if (res.ok) {
+        setSnackbar({ open: true, message: 'Notification preferences saved!', severity: 'success' });
+      } else {
+        setSnackbar({ open: true, message: 'Failed to save preferences', severity: 'error' });
+      }
+    } catch (error) {
+      setSnackbar({ open: true, message: 'Something went wrong', severity: 'error' });
+    } finally {
+      setSavingNotifications(false);
     }
   };
 
@@ -277,6 +312,15 @@ export default function SettingsPage() {
                   </Box>
                 }
               />
+
+              <Button
+                variant="contained"
+                onClick={handleSaveNotifications}
+                disabled={savingNotifications}
+                sx={{ alignSelf: 'flex-start', mt: 2 }}
+              >
+                {savingNotifications ? 'Saving...' : 'Save Preferences'}
+              </Button>
             </Stack>
           </CardContent>
         </MotionCard>

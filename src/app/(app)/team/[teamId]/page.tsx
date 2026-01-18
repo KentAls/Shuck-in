@@ -138,13 +138,16 @@ export default function TeamDetailPage({
 
   const handleMemberMenuClose = () => {
     setAnchorEl(null);
-    setSelectedMember(null);
   };
 
-  const handleCopyInviteCode = () => {
+  const handleCopyInviteCode = async () => {
     if (team) {
-      navigator.clipboard.writeText(team.inviteCode);
-      setSnackbar({ open: true, message: 'Invite code copied to clipboard!', severity: 'success' });
+      try {
+        await navigator.clipboard.writeText(team.inviteCode);
+        setSnackbar({ open: true, message: 'Invite code copied to clipboard!', severity: 'success' });
+      } catch (error) {
+        setSnackbar({ open: true, message: 'Failed to copy invite code', severity: 'error' });
+      }
     }
   };
 
@@ -170,12 +173,13 @@ export default function TeamDetailPage({
       setSnackbar({ open: true, message: 'Failed to update role', severity: 'error' });
     } finally {
       setActionLoading(false);
-      handleMemberMenuClose();
+      setAnchorEl(null);
+      setSelectedMember(null);
     }
   };
 
   const handleRemoveClick = () => {
-    handleMemberMenuClose();
+    setAnchorEl(null);
     setRemoveDialogOpen(true);
   };
 
