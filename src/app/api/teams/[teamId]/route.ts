@@ -14,7 +14,7 @@ const updateTeamSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { teamId: string } }
+  { params }: { params: Promise<{ teamId: string }> }
 ) {
   try {
     const { isLoggedIn, user } = await getAuth();
@@ -22,7 +22,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { teamId } = params;
+    const { teamId } = await params;
 
     const team = await prisma.team.findFirst({
       where: {
@@ -119,7 +119,7 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { teamId: string } }
+  { params }: { params: Promise<{ teamId: string }> }
 ) {
   try {
     const { isLoggedIn, user } = await getAuth();
@@ -127,7 +127,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { teamId } = params;
+    const { teamId } = await params;
 
     // Check if user is admin or owner
     const membership = await prisma.teamMember.findFirst({
@@ -163,7 +163,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { teamId: string } }
+  { params }: { params: Promise<{ teamId: string }> }
 ) {
   try {
     const { isLoggedIn, user } = await getAuth();
@@ -171,7 +171,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { teamId } = params;
+    const { teamId } = await params;
 
     // Check if user is owner
     const team = await prisma.team.findFirst({

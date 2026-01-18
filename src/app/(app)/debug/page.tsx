@@ -10,12 +10,21 @@ import {
   CircularProgress,
   Alert,
 } from '@mui/material';
-import { BugReport, Refresh } from '@mui/icons-material';
+import { BugReport, Refresh, ContentCopy, Check } from '@mui/icons-material';
 
 export default function DebugPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    if (data) {
+      await navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   const fetchDebugData = async () => {
     setLoading(true);
@@ -167,7 +176,18 @@ export default function DebugPage() {
           {/* Raw JSON */}
           <Card>
             <CardContent>
-              <Typography variant="h6" sx={{ mb: 1 }}>Raw JSON</Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                <Typography variant="h6">Raw JSON</Typography>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={handleCopy}
+                  startIcon={copied ? <Check /> : <ContentCopy />}
+                  color={copied ? 'success' : 'primary'}
+                >
+                  {copied ? 'Copied' : 'Copy'}
+                </Button>
+              </Box>
               <Box
                 component="pre"
                 sx={{

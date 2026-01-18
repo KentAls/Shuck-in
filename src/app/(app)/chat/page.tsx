@@ -611,6 +611,12 @@ export default function ChatPage() {
                 {selectedRoom.isArchived && (
                   <Chip label="Archived" color="warning" size="small" />
                 )}
+                <IconButton
+                  onClick={() => setCreateRoomDialogOpen(true)}
+                  sx={{ display: { xs: 'flex', md: 'none' } }}
+                >
+                  <Add />
+                </IconButton>
               </Box>
 
               {/* Messages */}
