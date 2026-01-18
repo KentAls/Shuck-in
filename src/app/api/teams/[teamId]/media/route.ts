@@ -11,7 +11,7 @@ const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime'];
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { teamId: string } }
+  { params }: { params: Promise<{ teamId: string }> }
 ) {
   try {
     const { isLoggedIn, user } = await getAuth();
@@ -19,7 +19,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { teamId } = params;
+    const { teamId } = await params;
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type'); // 'PHOTO' or 'VIDEO'
     const limit = parseInt(searchParams.get('limit') || '50');
@@ -77,7 +77,7 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { teamId: string } }
+  { params }: { params: Promise<{ teamId: string }> }
 ) {
   try {
     const { isLoggedIn, user } = await getAuth();
@@ -85,7 +85,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { teamId } = params;
+    const { teamId } = await params;
 
     // Check if user is a member of the team
     const membership = await prisma.teamMember.findFirst({

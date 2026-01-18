@@ -369,9 +369,8 @@ export default function ChatPage() {
       setUploadProgress(70);
 
       // Send message with media URL
-      const messageContent = mediaData.type === 'PHOTO'
-        ? `[Image](${mediaData.url})`
-        : `[Video](${mediaData.url})`;
+      // Use short content to avoid doubling the request size with base64 data
+      const messageContent = mediaData.type === 'PHOTO' ? '📷 Photo' : '🎥 Video';
 
       const res = await fetch('/api/messages', {
         method: 'POST',
@@ -835,7 +834,7 @@ export default function ChatPage() {
                                   overflow: 'hidden',
                                 }}
                               >
-                                {message.mediaUrl && message.mediaType === 'PHOTO' && (
+                                {message.mediaUrl && (message.mediaType === 'PHOTO' || (!message.mediaType && !message.mediaUrl.includes('.mp4') && !message.mediaUrl.includes('.webm') && !message.mediaUrl.includes('.mov'))) && (
                                   <Box
                                     component="img"
                                     src={message.mediaUrl}
@@ -849,7 +848,7 @@ export default function ChatPage() {
                                     onClick={() => window.open(message.mediaUrl!, '_blank')}
                                   />
                                 )}
-                                {message.mediaUrl && message.mediaType === 'VIDEO' && (
+                                {message.mediaUrl && (message.mediaType === 'VIDEO' || (!message.mediaType && (message.mediaUrl.includes('.mp4') || message.mediaUrl.includes('.webm') || message.mediaUrl.includes('.mov')))) && (
                                   <Box
                                     component="video"
                                     src={message.mediaUrl}
@@ -862,7 +861,7 @@ export default function ChatPage() {
                                     }}
                                   />
                                 )}
-                                {!message.mediaUrl && (
+                                {(!message.mediaUrl || (message.content && !message.content.startsWith('[Image]') && !message.content.startsWith('[Video]'))) && (
                                   <Typography variant="body2" sx={{ wordBreak: 'break-word' }}>
                                     {message.content}
                                   </Typography>
