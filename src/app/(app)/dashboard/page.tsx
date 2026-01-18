@@ -37,6 +37,7 @@ import { motion } from 'framer-motion';
 import { format, formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
 import { useAuth } from '@/components/providers/AuthProvider';
+import OnboardingWizard from '@/components/onboarding/OnboardingWizard';
 
 const MotionCard = motion(Card);
 
@@ -81,6 +82,8 @@ interface UserStats {
   attendanceRate: number;
 }
 
+const ONBOARDING_KEY = 'shuckin_onboarding_complete';
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const [upcomingGames, setUpcomingGames] = useState<Game[]>([]);
@@ -89,6 +92,22 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [rsvpLoading, setRsvpLoading] = useState<string | null>(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  // Check if user has completed onboarding
+  useEffect(() => {
+    const hasCompletedOnboarding = localStorage.getItem(ONBOARDING_KEY);
+    if (!hasCompletedOnboarding) {
+      // Small delay to let the page load first
+      const timer = setTimeout(() => setShowOnboarding(true), 500);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  const handleOnboardingComplete = () => {
+    localStorage.setItem(ONBOARDING_KEY, 'true');
+    setShowOnboarding(false);
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -227,6 +246,13 @@ export default function DashboardPage() {
             </Button>
           </Stack>
         </Card>
+
+        {/* Onboarding Wizard */}
+        <OnboardingWizard
+          open={showOnboarding}
+          onClose={() => setShowOnboarding(false)}
+          onComplete={handleOnboardingComplete}
+        />
       </Box>
     );
   }
@@ -631,6 +657,13 @@ export default function DashboardPage() {
           {snackbar.message}
         </Alert>
       </Snackbar>
+
+      {/* Onboarding Wizard */}
+      <OnboardingWizard
+        open={showOnboarding}
+        onClose={() => setShowOnboarding(false)}
+        onComplete={handleOnboardingComplete}
+      />
     </Box>
   );
 }

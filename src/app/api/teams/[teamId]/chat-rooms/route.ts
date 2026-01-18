@@ -95,17 +95,13 @@ export async function POST(
 
     const { teamId } = await params;
 
-    // Check if user is admin/owner
+    // Check if user is a team member (anyone can create chat rooms)
     const membership = await prisma.teamMember.findFirst({
       where: { teamId, userId: user.id, status: 'ACTIVE' },
     });
 
     if (!membership) {
       return NextResponse.json({ error: 'Not a team member' }, { status: 403 });
-    }
-
-    if (membership.role !== 'OWNER' && membership.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Only admins can create chat rooms' }, { status: 403 });
     }
 
     const body = await request.json();

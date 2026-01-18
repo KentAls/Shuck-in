@@ -34,6 +34,15 @@ export async function GET(request: NextRequest) {
         sport: true,
         color: true,
         logo: true,
+        members: {
+          where: {
+            userId: user.id,
+            status: 'ACTIVE',
+          },
+          select: {
+            role: true,
+          },
+        },
         _count: {
           select: {
             members: {
@@ -47,7 +56,18 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(teams);
+    // Transform to include userRole at top level
+    const teamsWithRole = teams.map((team: typeof teams[number]) => ({
+      id: team.id,
+      name: team.name,
+      sport: team.sport,
+      color: team.color,
+      logo: team.logo,
+      userRole: team.members[0]?.role || null,
+      _count: team._count,
+    }));
+
+    return NextResponse.json(teamsWithRole);
   } catch (error) {
     console.error('Error fetching teams:', error);
     return NextResponse.json({ error: 'Failed to fetch teams' }, { status: 500 });

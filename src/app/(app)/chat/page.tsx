@@ -122,6 +122,7 @@ export default function ChatPage() {
   const selectedTeam = teams.find((t) => t.id === selectedTeamId);
   const selectedRoom = chatRooms.find((r) => r.id === selectedRoomId);
   const isAdmin = selectedTeam?.userRole === 'OWNER' || selectedTeam?.userRole === 'ADMIN';
+  const canManageRooms = true; // Anyone can create/manage chat rooms
 
   // Check if user is near the bottom of the chat
   const checkIfNearBottom = useCallback(() => {
@@ -483,7 +484,7 @@ export default function ChatPage() {
                             {room.isDefault && (
                               <Chip label="Default" size="small" sx={{ height: 20, fontSize: '0.65rem' }} />
                             )}
-                            {isAdmin && (
+                            {canManageRooms && (
                               <IconButton
                                 size="small"
                                 onClick={(e) => {
@@ -499,7 +500,7 @@ export default function ChatPage() {
                         ))}
 
                         {/* Create Room Button */}
-                        {isAdmin && (
+                        {canManageRooms && (
                           <ListItemButton
                             onClick={() => setCreateRoomDialogOpen(true)}
                             sx={{ borderRadius: 1, py: 0.5, pl: 2, color: 'primary.main' }}
