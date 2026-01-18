@@ -13,16 +13,16 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'Shuck-in | Team Sports Management',
+  title: 'Shuck It | Team Sports Management',
   description: 'The ultimate team sports management app. Manage your roster, schedule games, track attendance, and chat with your team.',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Shuck-in',
+    title: 'Shuck It',
   },
   openGraph: {
-    title: 'Shuck-in | Team Sports Management',
+    title: 'Shuck It | Team Sports Management',
     description: 'The ultimate team sports management app',
     type: 'website',
   },
