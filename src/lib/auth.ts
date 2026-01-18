@@ -40,13 +40,12 @@ export async function getAuth(): Promise<AuthResult> {
       },
     });
   } else if (user) {
-    // Update user info if changed
-    if (user.name !== hello.name || user.image !== hello.picture) {
+    // Update name if changed (but NOT image - user controls their own profile picture)
+    if (user.name !== hello.name && hello.name) {
       user = await prisma.user.update({
         where: { id: user.id },
         data: {
-          name: hello.name || user.name,
-          image: hello.picture || user.image,
+          name: hello.name,
         },
       });
     }
