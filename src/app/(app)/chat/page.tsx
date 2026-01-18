@@ -369,9 +369,8 @@ export default function ChatPage() {
       setUploadProgress(70);
 
       // Send message with media URL
-      const messageContent = mediaData.type === 'PHOTO'
-        ? `[Image](${mediaData.url})`
-        : `[Video](${mediaData.url})`;
+      // Use short content to avoid doubling the request size with base64 data
+      const messageContent = mediaData.type === 'PHOTO' ? '📷 Photo' : '🎥 Video';
 
       const res = await fetch('/api/messages', {
         method: 'POST',
