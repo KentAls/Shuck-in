@@ -81,6 +81,21 @@ export function getStaleCache<T>(key: string): T | null {
   }
 }
 
+// Check if cache is still fresh (not expired)
+export function isCacheFresh(key: string, maxAge: number): boolean {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return false;
+
+    const entry = JSON.parse(raw);
+    if (entry.version !== CACHE_VERSION) return false;
+
+    return Date.now() - entry.timestamp < maxAge;
+  } catch {
+    return false;
+  }
+}
+
 export function invalidateCache(keyPattern: string): void {
   try {
     const keys = Object.keys(localStorage);
