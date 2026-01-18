@@ -64,7 +64,7 @@ const navItems = [
 const mobileNavItems = [
   { label: 'Home', icon: <Dashboard />, path: '/dashboard' },
   { label: 'Team', icon: <Groups />, path: '/team' },
-  { label: 'Media', icon: <PhotoLibrary />, path: '/media' },
+  { label: 'Media', icon: <PhotoLibrary />, path: '/media', exact: true },
   { label: 'Schedule', icon: <CalendarMonth />, path: '/schedule' },
   { label: 'Chat', icon: <Chat />, path: '/chat' },
 ];
@@ -235,8 +235,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const getMobileNavIndex = () => {
     if (pathname.startsWith('/dashboard')) return 0;
+    if (pathname === '/media' || pathname.startsWith('/media/')) return 2;
     if (pathname.startsWith('/team')) return 1;
-    if (pathname.includes('/media')) return 2;
     if (pathname.startsWith('/schedule')) return 3;
     if (pathname.startsWith('/chat')) return 4;
     return -1;
@@ -530,7 +530,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <BottomNavigationAction
               key={item.path}
               component={Link}
-              href={item.path === '/media' ? '/team?tab=media' : item.path}
+              href={item.path}
               label={item.label}
               icon={
                 item.path === '/chat' ? (

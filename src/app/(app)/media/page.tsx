@@ -26,10 +26,13 @@ import {
   Alert,
   CircularProgress,
   Fab,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem as SelectMenuItem,
   LinearProgress,
 } from '@mui/material';
 import {
-  ArrowBack,
   PhotoCamera,
   Videocam,
   Delete,
@@ -38,6 +41,7 @@ import {
   CloudUpload,
   Image as ImageIcon,
   PlayArrow,
+  Groups,
   Compress,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -59,6 +63,7 @@ interface MediaItem {
   fileSize: number | null;
   mimeType: string | null;
   createdAt: string;
+  teamId: string;
   uploadedBy: {
     id: string;
     name: string | null;
@@ -73,17 +78,14 @@ interface Team {
   userRole: string | null;
 }
 
-export default function TeamMediaPage({
-  params,
-}: {
-  params: { teamId: string };
-}) {
-  const { teamId } = params;
+export default function MediaPage() {
   const { user } = useAuth();
   const { showApiError, showNetworkError } = useError();
-  const [team, setTeam] = useState<Team | null>(null);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [selectedTeamId, setSelectedTeamId] = useState<string>('');
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMedia, setLoadingMedia] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [tabValue, setTabValue] = useState(0);
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
@@ -106,44 +108,54 @@ export default function TeamMediaPage({
   const MAX_UPLOAD_SIZE = 3 * 1024 * 1024;
 
   useEffect(() => {
-    fetchTeam();
-    fetchMedia();
-  }, [teamId]);
+    fetchTeams();
+  }, []);
 
   useEffect(() => {
-    fetchMedia();
-  }, [tabValue]);
+    if (selectedTeamId) {
+      fetchMedia();
+    }
+  }, [selectedTeamId, tabValue]);
 
-  const fetchTeam = async () => {
+  const fetchTeams = async () => {
     try {
-      const res = await fetch(`/api/teams/${teamId}`);
+      const res = await fetch('/api/teams');
       if (res.ok) {
         const data = await res.json();
-        setTeam(data);
+        setTeams(data);
+        // Auto-select first team if only one
+        if (data.length === 1) {
+          setSelectedTeamId(data[0].id);
+        } else if (data.length > 0) {
+          setSelectedTeamId(data[0].id);
+        }
       } else {
-        await showApiError(res, 'Failed to load team');
+        await showApiError(res, 'Failed to load teams');
       }
     } catch (error) {
-      showNetworkError(error, `/api/teams/${teamId}`);
+      showNetworkError(error, '/api/teams');
+    } finally {
+      setLoading(false);
     }
   };
 
   const fetchMedia = async () => {
-    setLoading(true);
+    if (!selectedTeamId) return;
+    setLoadingMedia(true);
     try {
       const type = tabValue === 1 ? 'PHOTO' : tabValue === 2 ? 'VIDEO' : '';
-      const url = `/api/teams/${teamId}/media${type ? `?type=${type}` : ''}`;
+      const url = `/api/teams/${selectedTeamId}/media${type ? `?type=${type}` : ''}`;
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
-        setMedia(data.media);
+        setMedia(data.media.map((m: MediaItem) => ({ ...m, teamId: selectedTeamId })));
       } else {
         await showApiError(res, 'Failed to load media');
       }
     } catch (error) {
-      showNetworkError(error, `/api/teams/${teamId}/media`);
+      showNetworkError(error, `/api/teams/${selectedTeamId}/media`);
     } finally {
-      setLoading(false);
+      setLoadingMedia(false);
     }
   };
 
@@ -190,7 +202,7 @@ export default function TeamMediaPage({
   };
 
   const handleUpload = async () => {
-    if (!selectedFile) return;
+    if (!selectedFile || !selectedTeamId) return;
 
     setUploading(true);
     try {
@@ -199,21 +211,21 @@ export default function TeamMediaPage({
       if (uploadTitle) formData.append('title', uploadTitle);
       if (uploadDescription) formData.append('description', uploadDescription);
 
-      const res = await fetch(`/api/teams/${teamId}/media`, {
+      const res = await fetch(`/api/teams/${selectedTeamId}/media`, {
         method: 'POST',
         body: formData,
       });
 
       if (res.ok) {
         const newMedia = await res.json();
-        setMedia([newMedia, ...media]);
+        setMedia([{ ...newMedia, teamId: selectedTeamId }, ...media]);
         setSuccessMessage('Media uploaded successfully!');
         closeUploadDialog();
       } else {
         await showApiError(res, 'Failed to upload media');
       }
     } catch (error) {
-      showNetworkError(error, `/api/teams/${teamId}/media`);
+      showNetworkError(error, `/api/teams/${selectedTeamId}/media`);
     } finally {
       setUploading(false);
     }
@@ -237,7 +249,7 @@ export default function TeamMediaPage({
     if (!mediaToDelete) return;
 
     try {
-      const res = await fetch(`/api/teams/${teamId}/media/${mediaToDelete.id}`, {
+      const res = await fetch(`/api/teams/${mediaToDelete.teamId}/media/${mediaToDelete.id}`, {
         method: 'DELETE',
       });
 
@@ -251,14 +263,17 @@ export default function TeamMediaPage({
         await showApiError(res, 'Failed to delete media');
       }
     } catch (error) {
-      showNetworkError(error, `/api/teams/${teamId}/media/${mediaToDelete.id}`);
+      showNetworkError(error, `/api/teams/${mediaToDelete.teamId}/media/${mediaToDelete.id}`);
     } finally {
       setDeleteConfirmOpen(false);
       setMediaToDelete(null);
     }
   };
 
+  const getSelectedTeam = () => teams.find(t => t.id === selectedTeamId);
+
   const canDelete = (item: MediaItem) => {
+    const team = getSelectedTeam();
     return item.uploadedBy.id === user?.id || team?.userRole === 'OWNER' || team?.userRole === 'ADMIN';
   };
 
@@ -269,28 +284,78 @@ export default function TeamMediaPage({
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
+  if (loading) {
+    return (
+      <Box>
+        <Skeleton variant="text" width={200} height={40} sx={{ mb: 2 }} />
+        <Skeleton variant="rounded" height={56} sx={{ mb: 3 }} />
+        <Grid container spacing={2}>
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <Grid item xs={6} sm={4} md={3} key={i}>
+              <Skeleton variant="rounded" height={200} />
+            </Grid>
+          ))}
+        </Grid>
+      </Box>
+    );
+  }
+
+  if (teams.length === 0) {
+    return (
+      <Box sx={{ textAlign: 'center', py: 8 }}>
+        <Groups sx={{ fontSize: 80, color: 'text.secondary', mb: 2 }} />
+        <Typography variant="h5" sx={{ mb: 1 }}>
+          No teams yet
+        </Typography>
+        <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
+          Join or create a team to start sharing media
+        </Typography>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="center">
+          <Button component={Link} href="/team/new" variant="contained" startIcon={<Add />}>
+            Create Team
+          </Button>
+          <Button component={Link} href="/team/join" variant="outlined">
+            Join Team
+          </Button>
+        </Stack>
+      </Box>
+    );
+  }
+
   return (
     <Box>
       {/* Header */}
-      <Box sx={{ mb: 4 }}>
-        <Button
-          component={Link}
-          href={`/team/${teamId}`}
-          startIcon={<ArrowBack />}
-          sx={{ mb: 2, color: 'text.secondary' }}
-        >
-          Back to Team
-        </Button>
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="h4" sx={{ fontWeight: 700, fontSize: { xs: '1.5rem', sm: '2rem' }, mb: 2 }}>
+          Media Library
+        </Typography>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
-          <Box>
-            <Typography variant="h4" sx={{ fontWeight: 700, fontSize: { xs: '1.5rem', sm: '2rem' } }}>
-              Media Library
-            </Typography>
-            <Typography variant="body1" color="text.secondary">
-              {team?.name} - Photos and videos
-            </Typography>
-          </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+          {/* Team Selector */}
+          <FormControl sx={{ minWidth: 200 }} size="small">
+            <InputLabel>Team</InputLabel>
+            <Select
+              value={selectedTeamId}
+              label="Team"
+              onChange={(e) => setSelectedTeamId(e.target.value)}
+            >
+              {teams.map((team) => (
+                <SelectMenuItem key={team.id} value={team.id}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box
+                      sx={{
+                        width: 12,
+                        height: 12,
+                        borderRadius: '50%',
+                        bgcolor: team.color,
+                      }}
+                    />
+                    {team.name}
+                  </Box>
+                </SelectMenuItem>
+              ))}
+            </Select>
+          </FormControl>
 
           <input
             type="file"
@@ -305,6 +370,7 @@ export default function TeamMediaPage({
               component="span"
               variant="contained"
               startIcon={<CloudUpload />}
+              disabled={!selectedTeamId}
             >
               Upload
             </Button>
@@ -322,7 +388,7 @@ export default function TeamMediaPage({
       </Box>
 
       {/* Media Grid */}
-      {loading ? (
+      {loadingMedia ? (
         <Grid container spacing={2}>
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <Grid item xs={6} sm={4} md={3} key={i}>
