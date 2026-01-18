@@ -58,6 +58,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { format, isToday, isYesterday } from 'date-fns';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useError } from '@/components/providers/ErrorProvider';
+import { getCacheKey, getCache, setCache, getStaleCache, CACHE_DURATIONS, compressImage } from '@/lib/cache';
 
 const MotionBox = motion(Box);
 
@@ -200,17 +201,28 @@ export default function ChatPage() {
   }, [handleScroll]);
 
   const fetchTeams = async () => {
+    // Load cached teams immediately
+    const cached = getStaleCache<Team[]>(getCacheKey('teams'));
+    if (cached) {
+      setTeams(cached);
+      if (!preselectedTeam && cached.length > 0) {
+        setSelectedTeamId(cached[0].id);
+      }
+      setLoading(false);
+    }
+
     try {
       const res = await fetch('/api/teams');
       if (res.ok) {
         const data = await res.json();
         setTeams(data);
-        if (!preselectedTeam && data.length > 0) {
+        setCache(getCacheKey('teams'), data);
+        if (!preselectedTeam && data.length > 0 && !cached) {
           setSelectedTeamId(data[0].id);
         }
       }
     } catch (error) {
-      showNetworkError(error, '/api/teams');
+      if (!cached) showNetworkError(error, '/api/teams');
     } finally {
       setLoading(false);
     }
@@ -218,25 +230,46 @@ export default function ChatPage() {
 
   const fetchChatRooms = async () => {
     if (!selectedTeamId) return;
-    setRoomsLoading(true);
+
+    // Load cached rooms immediately
+    const cacheKey = getCacheKey('chat_rooms', selectedTeamId);
+    const cached = getStaleCache<ChatRoom[]>(cacheKey);
+    if (cached) {
+      setChatRooms(cached);
+      const defaultRoom = cached.find((r: ChatRoom) => r.isDefault && !r.isArchived);
+      const firstActive = cached.find((r: ChatRoom) => !r.isArchived);
+      if (defaultRoom) {
+        setSelectedRoomId(defaultRoom.id);
+      } else if (firstActive) {
+        setSelectedRoomId(firstActive.id);
+      } else if (cached.length > 0) {
+        setSelectedRoomId(cached[0].id);
+      }
+    } else {
+      setRoomsLoading(true);
+    }
+
     try {
       const res = await fetch(`/api/teams/${selectedTeamId}/chat-rooms?includeArchived=true`);
       if (res.ok) {
         const data = await res.json();
         setChatRooms(data);
-        // Auto-select default room or first room
-        const defaultRoom = data.find((r: ChatRoom) => r.isDefault && !r.isArchived);
-        const firstActive = data.find((r: ChatRoom) => !r.isArchived);
-        if (defaultRoom) {
-          setSelectedRoomId(defaultRoom.id);
-        } else if (firstActive) {
-          setSelectedRoomId(firstActive.id);
-        } else if (data.length > 0) {
-          setSelectedRoomId(data[0].id);
+        setCache(cacheKey, data);
+        // Auto-select default room or first room (only if no cached selection)
+        if (!cached) {
+          const defaultRoom = data.find((r: ChatRoom) => r.isDefault && !r.isArchived);
+          const firstActive = data.find((r: ChatRoom) => !r.isArchived);
+          if (defaultRoom) {
+            setSelectedRoomId(defaultRoom.id);
+          } else if (firstActive) {
+            setSelectedRoomId(firstActive.id);
+          } else if (data.length > 0) {
+            setSelectedRoomId(data[0].id);
+          }
         }
       }
     } catch (error) {
-      showNetworkError(error, `/api/teams/${selectedTeamId}/chat-rooms`);
+      if (!cached) showNetworkError(error, `/api/teams/${selectedTeamId}/chat-rooms`);
     } finally {
       setRoomsLoading(false);
     }
@@ -244,7 +277,21 @@ export default function ChatPage() {
 
   const fetchMessages = async (initialLoad = false) => {
     if (!selectedTeamId || !selectedRoomId) return;
-    if (initialLoad) setMessagesLoading(true);
+
+    const cacheKey = getCacheKey('messages', selectedTeamId, selectedRoomId);
+
+    // On initial load, show cached messages immediately
+    if (initialLoad) {
+      const cached = getStaleCache<{ messages: Message[] }>(cacheKey);
+      if (cached?.messages) {
+        setMessages(cached.messages);
+        previousMessagesLengthRef.current = cached.messages.length;
+        setTimeout(() => scrollToBottom(), 100);
+      } else {
+        setMessagesLoading(true);
+      }
+    }
+
     try {
       const res = await fetch(`/api/messages?teamId=${selectedTeamId}&chatRoomId=${selectedRoomId}`);
       if (res.ok) {
@@ -253,6 +300,8 @@ export default function ChatPage() {
         const hadNewMessages = newMessages.length > previousMessagesLengthRef.current;
         previousMessagesLengthRef.current = newMessages.length;
         setMessages(newMessages);
+        setCache(cacheKey, data);
+
         if (initialLoad) {
           setTimeout(() => scrollToBottom(), 100);
         } else if (hadNewMessages) {
@@ -348,9 +397,23 @@ export default function ChatPage() {
     setUploadProgress(10);
 
     try {
+      // Compress images before upload (mobile optimization)
+      let fileToUpload: File | Blob = selectedFile;
+      if (selectedFile.type.startsWith('image/') && selectedFile.size > 500 * 1024) {
+        try {
+          setUploadProgress(15);
+          const compressed = await compressImage(selectedFile, 1200, 1200, 0.8);
+          fileToUpload = compressed;
+        } catch (err) {
+          console.warn('Image compression failed, using original:', err);
+        }
+      }
+
+      setUploadProgress(25);
+
       // Upload to media library
       const formData = new FormData();
-      formData.append('file', selectedFile);
+      formData.append('file', fileToUpload, selectedFile.name);
       formData.append('title', `Chat: ${selectedFile.name}`);
 
       setUploadProgress(30);
@@ -837,6 +900,8 @@ export default function ChatPage() {
                                 {message.mediaUrl && (message.mediaType === 'PHOTO' || (!message.mediaType && !message.mediaUrl.includes('.mp4') && !message.mediaUrl.includes('.webm') && !message.mediaUrl.includes('.mov'))) && (
                                   <Box
                                     component="img"
+                                    loading="lazy"
+                                    decoding="async"
                                     src={message.mediaUrl}
                                     sx={{
                                       maxWidth: 250,
@@ -853,6 +918,7 @@ export default function ChatPage() {
                                     component="video"
                                     src={message.mediaUrl}
                                     controls
+                                    preload="none"
                                     sx={{
                                       maxWidth: 250,
                                       maxHeight: 300,

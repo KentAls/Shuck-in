@@ -40,6 +40,7 @@ import { format, formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
 import { useAuth } from '@/components/providers/AuthProvider';
 import OnboardingWizard from '@/components/onboarding/OnboardingWizard';
+import { getCacheKey, getCache, setCache, getStaleCache, CACHE_DURATIONS } from '@/lib/cache';
 
 const MotionCard = motion(Card);
 
@@ -170,6 +171,16 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const fetchData = async () => {
+      // Load cached data immediately for instant UI
+      const cachedTeams = getStaleCache<Team[]>(getCacheKey('teams'));
+      const cachedGames = getStaleCache<Game[]>(getCacheKey('games_upcoming'));
+      const cachedStats = getStaleCache<UserStats>(getCacheKey('user_stats'));
+
+      if (cachedTeams) setTeams(cachedTeams);
+      if (cachedGames) setUpcomingGames(cachedGames);
+      if (cachedStats) setUserStats(cachedStats);
+      if (cachedTeams || cachedGames) setLoading(false);
+
       try {
         const [gamesRes, teamsRes, statsRes] = await Promise.all([
           fetch('/api/games/upcoming'),
@@ -180,16 +191,19 @@ export default function DashboardPage() {
         if (gamesRes.ok) {
           const gamesData = await gamesRes.json();
           setUpcomingGames(gamesData);
+          setCache(getCacheKey('games_upcoming'), gamesData);
         }
 
         if (teamsRes.ok) {
           const teamsData = await teamsRes.json();
           setTeams(teamsData);
+          setCache(getCacheKey('teams'), teamsData);
         }
 
         if (statsRes.ok) {
           const statsData = await statsRes.json();
           setUserStats(statsData);
+          setCache(getCacheKey('user_stats'), statsData);
         }
       } catch (error) {
         console.error('Error fetching data:', error);
