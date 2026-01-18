@@ -67,6 +67,11 @@ export default function ChatPage() {
 
   useEffect(() => {
     fetchTeams();
+
+    // Request notification permission when opening chat
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
   }, []);
 
   useEffect(() => {

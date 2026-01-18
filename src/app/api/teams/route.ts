@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
         name: true,
         sport: true,
         color: true,
+        logo: true,
         _count: {
           select: {
             members: {

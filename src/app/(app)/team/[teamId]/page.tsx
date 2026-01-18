@@ -42,6 +42,7 @@ import {
   Email,
   Phone,
   SportsSoccer,
+  PhotoLibrary,
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
@@ -69,6 +70,7 @@ interface Team {
   sport: string;
   description: string | null;
   color: string;
+  logo: string | null;
   inviteCode: string;
   owner: {
     id: string;
@@ -247,26 +249,42 @@ export default function TeamDetailPage({
         </Button>
 
         <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'stretch', sm: 'flex-start' }, justifyContent: 'space-between', gap: 2 }}>
-          <Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 2 }, mb: 1, flexWrap: 'wrap' }}>
-              <Typography variant="h4" sx={{ fontWeight: 700, fontSize: { xs: '1.5rem', sm: '2rem' } }}>
-                {team.name}
-              </Typography>
-              <Chip
-                label={team.sport}
-                size="small"
-                sx={{
-                  backgroundColor: alpha(team.color, 0.15),
-                  color: team.color,
-                  fontWeight: 600,
-                }}
-              />
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+            {/* Team Logo */}
+            <Avatar
+              src={team.logo || undefined}
+              sx={{
+                width: { xs: 60, sm: 80 },
+                height: { xs: 60, sm: 80 },
+                bgcolor: alpha(team.color, 0.2),
+                color: team.color,
+                fontSize: { xs: '1.5rem', sm: '2rem' },
+                flexShrink: 0,
+              }}
+            >
+              {!team.logo && <Groups sx={{ fontSize: { xs: 30, sm: 40 } }} />}
+            </Avatar>
+            <Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 2 }, mb: 1, flexWrap: 'wrap' }}>
+                <Typography variant="h4" sx={{ fontWeight: 700, fontSize: { xs: '1.5rem', sm: '2rem' } }}>
+                  {team.name}
+                </Typography>
+                <Chip
+                  label={team.sport}
+                  size="small"
+                  sx={{
+                    backgroundColor: alpha(team.color, 0.15),
+                    color: team.color,
+                    fontWeight: 600,
+                  }}
+                />
+              </Box>
+              {team.description && (
+                <Typography variant="body1" color="text.secondary">
+                  {team.description}
+                </Typography>
+              )}
             </Box>
-            {team.description && (
-              <Typography variant="body1" color="text.secondary">
-                {team.description}
-              </Typography>
-            )}
           </Box>
 
           {canManageTeam && (
@@ -330,6 +348,7 @@ export default function TeamDetailPage({
         <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)}>
           <Tab label="Roster" />
           <Tab label="Schedule" />
+          <Tab label="Media" />
           <Tab label="Stats" />
         </Tabs>
       </Box>
@@ -433,8 +452,25 @@ export default function TeamDetailPage({
         </Box>
       </TabPanel>
 
-      {/* Stats Tab */}
+      {/* Media Tab */}
       <TabPanel value={tabValue} index={2}>
+        <Box sx={{ textAlign: 'center', py: 4 }}>
+          <PhotoLibrary sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />
+          <Typography variant="h6" color="text.secondary" sx={{ mb: 2 }}>
+            Team photos and videos
+          </Typography>
+          <Button
+            component={Link}
+            href={`/team/${teamId}/media`}
+            variant="contained"
+          >
+            View Media Library
+          </Button>
+        </Box>
+      </TabPanel>
+
+      {/* Stats Tab */}
+      <TabPanel value={tabValue} index={3}>
         <Box sx={{ textAlign: 'center', py: 4 }}>
           <Typography variant="body1" color="text.secondary">
             Stats coming soon...

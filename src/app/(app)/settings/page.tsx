@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Card,
@@ -62,10 +62,39 @@ export default function SettingsPage() {
     emailReminders: true,
     chatNotifications: true,
   });
+  const [browserNotificationPermission, setBrowserNotificationPermission] = useState<NotificationPermission>('default');
 
   useEffect(() => {
     fetchProfile();
+    // Check browser notification permission
+    if ('Notification' in window) {
+      setBrowserNotificationPermission(Notification.permission);
+    }
   }, []);
+
+  const handleEnableBrowserNotifications = async () => {
+    if (!('Notification' in window)) {
+      setSnackbar({ open: true, message: 'Browser notifications are not supported', severity: 'error' });
+      return;
+    }
+
+    try {
+      const permission = await Notification.requestPermission();
+      setBrowserNotificationPermission(permission);
+      if (permission === 'granted') {
+        setSnackbar({ open: true, message: 'Browser notifications enabled!', severity: 'success' });
+        // Show a test notification
+        new Notification('Notifications Enabled', {
+          body: 'You will now receive notifications for new chat messages',
+          icon: '/icon-192.png',
+        });
+      } else if (permission === 'denied') {
+        setSnackbar({ open: true, message: 'Notifications were denied. Check your browser settings.', severity: 'error' });
+      }
+    } catch (error) {
+      setSnackbar({ open: true, message: 'Failed to enable notifications', severity: 'error' });
+    }
+  };
 
   const fetchProfile = async () => {
     try {
@@ -99,7 +128,7 @@ export default function SettingsPage() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: formData.name || null,
+          name: formData.name.trim() || undefined,
           phone: formData.phone || null,
           jerseyNumber: formData.jerseyNumber || null,
           position: formData.position || null,
@@ -107,11 +136,14 @@ export default function SettingsPage() {
       });
 
       if (res.ok) {
-        // Refresh auth state
+        // Refresh auth state to update the context
         await refresh();
+        // Re-fetch profile to sync form data with saved values
+        await fetchProfile();
         setSnackbar({ open: true, message: 'Profile updated successfully!', severity: 'success' });
       } else {
-        setSnackbar({ open: true, message: 'Failed to update profile', severity: 'error' });
+        const data = await res.json();
+        setSnackbar({ open: true, message: data.error || 'Failed to update profile', severity: 'error' });
       }
     } catch (error) {
       setSnackbar({ open: true, message: 'Something went wrong', severity: 'error' });
@@ -312,6 +344,33 @@ export default function SettingsPage() {
                   </Box>
                 }
               />
+
+              <Divider sx={{ my: 2 }} />
+
+              {/* Browser Notifications */}
+              <Box>
+                <Typography variant="body1" sx={{ mb: 1 }}>Browser Notifications</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Enable push notifications to get alerts even when the app is in the background
+                </Typography>
+                {browserNotificationPermission === 'granted' ? (
+                  <Alert severity="success" sx={{ mb: 2 }}>
+                    Browser notifications are enabled
+                  </Alert>
+                ) : browserNotificationPermission === 'denied' ? (
+                  <Alert severity="warning" sx={{ mb: 2 }}>
+                    Browser notifications are blocked. Please enable them in your browser settings.
+                  </Alert>
+                ) : (
+                  <Button
+                    variant="outlined"
+                    onClick={handleEnableBrowserNotifications}
+                    sx={{ mb: 2 }}
+                  >
+                    Enable Browser Notifications
+                  </Button>
+                )}
+              </Box>
 
               <Button
                 variant="contained"
