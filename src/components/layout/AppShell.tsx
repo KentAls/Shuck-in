@@ -87,6 +87,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showInstallOption, setShowInstallOption] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
+  const [installDialogOpen, setInstallDialogOpen] = useState(false);
 
   // Capture the beforeinstallprompt event for PWA install
   useEffect(() => {
@@ -116,25 +117,42 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  // Detect if the app is installed or running as PWA
+  const [isInstalled, setIsInstalled] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
+
+  useEffect(() => {
+    // Check if running as standalone PWA
+    const standalone = window.matchMedia('(display-mode: standalone)').matches;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const iosStandalone = (window.navigator as any).standalone === true;
+    setIsInstalled(standalone || iosStandalone);
+
+    // Detect iOS
+    const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    setIsIOS(iOS);
+  }, []);
+
   // Handle PWA install
   const handleInstallClick = async () => {
-    if (!deferredPrompt) {
-      setSnackbarMessage('Install option not available. Try using your browser menu to add to home screen.');
-      return;
-    }
-
-    try {
-      await deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-        setSnackbarMessage('Installing app...');
+    if (deferredPrompt) {
+      try {
+        await deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          setSnackbarMessage('Installing app...');
+        }
+        setDeferredPrompt(null);
+        setShowInstallOption(false);
+      } catch (error) {
+        console.error('Install error:', error);
       }
-      setDeferredPrompt(null);
-      setShowInstallOption(false);
-    } catch (error) {
-      console.error('Install error:', error);
+      setAnchorEl(null);
+    } else {
+      // Show install instructions dialog
+      setInstallDialogOpen(true);
+      setAnchorEl(null);
     }
-    setAnchorEl(null);
   };
 
   // Fetch unread chat count
@@ -490,7 +508,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 </ListItemIcon>
                 Settings
               </MenuItem>
-              {showInstallOption && (
+              {!isInstalled && (
                 <MenuItem onClick={handleInstallClick}>
                   <ListItemIcon>
                     <InstallMobile fontSize="small" sx={{ color: '#00D9FF' }} />
@@ -591,6 +609,48 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setNotificationDialogOpen(false)}>Got it</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Install App Dialog */}
+      <Dialog open={installDialogOpen} onClose={() => setInstallDialogOpen(false)}>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <InstallMobile sx={{ color: '#00D9FF' }} />
+          Install App
+        </DialogTitle>
+        <DialogContent>
+          {isIOS ? (
+            <Typography>
+              To install this app on your iPhone/iPad:
+              <br /><br />
+              <strong>1.</strong> Tap the <strong>Share</strong> button (square with arrow) at the bottom of Safari
+              <br />
+              <strong>2.</strong> Scroll down and tap <strong>&quot;Add to Home Screen&quot;</strong>
+              <br />
+              <strong>3.</strong> Tap <strong>&quot;Add&quot;</strong> in the top right
+              <br /><br />
+              The app will appear on your home screen with full-screen experience!
+            </Typography>
+          ) : (
+            <Typography>
+              To install this app:
+              <br /><br />
+              <strong>Chrome/Edge:</strong>
+              <br />
+              Look for the install icon in your browser&apos;s address bar, or tap the menu (⋮) and select &quot;Install app&quot; or &quot;Add to Home Screen&quot;
+              <br /><br />
+              <strong>Firefox:</strong>
+              <br />
+              Tap the menu and select &quot;Install&quot; or &quot;Add to Home Screen&quot;
+              <br /><br />
+              <strong>Samsung Internet:</strong>
+              <br />
+              Tap the menu and select &quot;Add page to&quot; → &quot;Home screen&quot;
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setInstallDialogOpen(false)} variant="contained">Got it</Button>
         </DialogActions>
       </Dialog>
 
