@@ -218,6 +218,9 @@ model Message {
   chatRoomId String?
   chatRoom   ChatRoom? @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
 
+  mediaUrl  String?  @db.Text
+  mediaType String?
+
   @@index([chatRoomId, createdAt])
 }
 

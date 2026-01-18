@@ -9,6 +9,8 @@ const createMessageSchema = z.object({
   teamId: z.string(),
   chatRoomId: z.string().optional(),
   content: z.string().min(1).max(2000),
+  mediaUrl: z.string().optional(),
+  mediaType: z.enum(['PHOTO', 'VIDEO']).optional(),
 });
 
 export async function GET(request: NextRequest) {
@@ -99,11 +101,13 @@ export async function GET(request: NextRequest) {
     }));
 
     // Transform regular messages
-    const transformedMessages = messages.map((m: { id: string; content: string; createdAt: Date; user: { id: string; name: string | null; image: string | null } }) => ({
+    const transformedMessages = messages.map((m: { id: string; content: string; createdAt: Date; mediaUrl?: string | null; mediaType?: string | null; user: { id: string; name: string | null; image: string | null } }) => ({
       id: m.id,
       content: m.content,
       createdAt: m.createdAt,
       isChirper: false,
+      mediaUrl: m.mediaUrl,
+      mediaType: m.mediaType,
       user: m.user,
     }));
 
@@ -130,7 +134,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { teamId, chatRoomId, content } = createMessageSchema.parse(body);
+    const { teamId, chatRoomId, content, mediaUrl, mediaType } = createMessageSchema.parse(body);
 
     // Check if user is a member of the team
     const membership = await prisma.teamMember.findFirst({
@@ -173,6 +177,8 @@ export async function POST(request: NextRequest) {
         userId: user.id,
         content,
         chatRoomId: targetRoomId,
+        mediaUrl,
+        mediaType,
       },
       include: {
         user: {

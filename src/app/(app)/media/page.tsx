@@ -110,33 +110,11 @@ export default function MediaPage() {
   const [zoomLevel, setZoomLevel] = useState(1);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const viewerDialogRef = useRef<HTMLDivElement>(null);
 
-  // Handle fullscreen toggle
-  const toggleFullscreen = async () => {
-    if (!viewerDialogRef.current) return;
-
-    try {
-      if (!document.fullscreenElement) {
-        await viewerDialogRef.current.requestFullscreen();
-        setIsFullscreen(true);
-      } else {
-        await document.exitFullscreen();
-        setIsFullscreen(false);
-      }
-    } catch (err) {
-      console.error('Fullscreen error:', err);
-    }
+  // Simple fullscreen toggle - just uses Dialog's fullScreen prop
+  const toggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
   };
-
-  // Listen for fullscreen changes
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, []);
 
   // Handle download
   const handleDownload = async (item: MediaItem) => {
@@ -334,7 +312,8 @@ export default function MediaPage() {
 
   const canDelete = (item: MediaItem) => {
     const team = getSelectedTeam();
-    return item.uploadedBy.id === user?.id || team?.userRole === 'OWNER' || team?.userRole === 'ADMIN';
+    // Only admin/owner can delete media
+    return team?.userRole === 'OWNER' || team?.userRole === 'ADMIN';
   };
 
   const formatFileSize = (bytes: number | null) => {
@@ -672,7 +651,6 @@ export default function MediaPage() {
         fullWidth
         fullScreen={isFullscreen}
         PaperProps={{
-          ref: viewerDialogRef,
           sx: { bgcolor: '#0A0E17', maxHeight: isFullscreen ? '100vh' : '90vh' },
         }}
       >
