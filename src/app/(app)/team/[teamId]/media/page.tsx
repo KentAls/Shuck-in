@@ -42,6 +42,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
 import Link from 'next/link';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { useError } from '@/components/providers/ErrorProvider';
 
 const MotionCard = motion(Card);
 
@@ -76,6 +77,7 @@ export default function TeamMediaPage({
 }) {
   const { teamId } = params;
   const { user } = useAuth();
+  const { showApiError, showNetworkError } = useError();
   const [team, setTeam] = useState<Team | null>(null);
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,7 +87,7 @@ export default function TeamMediaPage({
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [mediaToDelete, setMediaToDelete] = useState<MediaItem | null>(null);
-  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const [uploadTitle, setUploadTitle] = useState('');
   const [uploadDescription, setUploadDescription] = useState('');
@@ -109,9 +111,11 @@ export default function TeamMediaPage({
       if (res.ok) {
         const data = await res.json();
         setTeam(data);
+      } else {
+        await showApiError(res, 'Failed to load team');
       }
     } catch (error) {
-      console.error('Error fetching team:', error);
+      showNetworkError(error, `/api/teams/${teamId}`);
     }
   };
 
@@ -124,9 +128,11 @@ export default function TeamMediaPage({
       if (res.ok) {
         const data = await res.json();
         setMedia(data.media);
+      } else {
+        await showApiError(res, 'Failed to load media');
       }
     } catch (error) {
-      console.error('Error fetching media:', error);
+      showNetworkError(error, `/api/teams/${teamId}/media`);
     } finally {
       setLoading(false);
     }
@@ -160,14 +166,13 @@ export default function TeamMediaPage({
       if (res.ok) {
         const newMedia = await res.json();
         setMedia([newMedia, ...media]);
-        setSnackbar({ open: true, message: 'Media uploaded successfully!', severity: 'success' });
+        setSuccessMessage('Media uploaded successfully!');
         closeUploadDialog();
       } else {
-        const data = await res.json();
-        setSnackbar({ open: true, message: data.error || 'Failed to upload media', severity: 'error' });
+        await showApiError(res, 'Failed to upload media');
       }
     } catch (error) {
-      setSnackbar({ open: true, message: 'Failed to upload media', severity: 'error' });
+      showNetworkError(error, `/api/teams/${teamId}/media`);
     } finally {
       setUploading(false);
     }
@@ -194,16 +199,15 @@ export default function TeamMediaPage({
 
       if (res.ok) {
         setMedia(media.filter((m) => m.id !== mediaToDelete.id));
-        setSnackbar({ open: true, message: 'Media deleted', severity: 'success' });
+        setSuccessMessage('Media deleted');
         if (selectedMedia?.id === mediaToDelete.id) {
           setSelectedMedia(null);
         }
       } else {
-        const data = await res.json();
-        setSnackbar({ open: true, message: data.error || 'Failed to delete media', severity: 'error' });
+        await showApiError(res, 'Failed to delete media');
       }
     } catch (error) {
-      setSnackbar({ open: true, message: 'Failed to delete media', severity: 'error' });
+      showNetworkError(error, `/api/teams/${teamId}/media/${mediaToDelete.id}`);
     } finally {
       setDeleteConfirmOpen(false);
       setMediaToDelete(null);
@@ -546,14 +550,14 @@ export default function TeamMediaPage({
         </DialogActions>
       </Dialog>
 
-      {/* Snackbar */}
+      {/* Success Snackbar */}
       <Snackbar
-        open={snackbar.open}
+        open={!!successMessage}
         autoHideDuration={3000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        onClose={() => setSuccessMessage(null)}
       >
-        <Alert severity={snackbar.severity} onClose={() => setSnackbar({ ...snackbar, open: false })}>
-          {snackbar.message}
+        <Alert severity="success" onClose={() => setSuccessMessage(null)}>
+          {successMessage}
         </Alert>
       </Snackbar>
 

@@ -24,6 +24,12 @@ import {
   useMediaQuery,
   useTheme,
   Popover,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Snackbar,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -35,13 +41,30 @@ import {
   Logout,
   SportsSoccer,
   Notifications,
+  PhotoLibrary,
+  InstallMobile,
+  NotificationsOff,
+  NotificationsActive,
 } from '@mui/icons-material';
 import Link from 'next/link';
 import { useAuth } from '@/components/providers/AuthProvider';
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
+
 const navItems = [
   { label: 'Dashboard', icon: <Dashboard />, path: '/dashboard' },
   { label: 'Team', icon: <Groups />, path: '/team' },
+  { label: 'Schedule', icon: <CalendarMonth />, path: '/schedule' },
+  { label: 'Chat', icon: <Chat />, path: '/chat' },
+];
+
+const mobileNavItems = [
+  { label: 'Home', icon: <Dashboard />, path: '/dashboard' },
+  { label: 'Team', icon: <Groups />, path: '/team' },
+  { label: 'Media', icon: <PhotoLibrary />, path: '/media' },
   { label: 'Schedule', icon: <CalendarMonth />, path: '/schedule' },
   { label: 'Chat', icon: <Chat />, path: '/chat' },
 ];
@@ -59,7 +82,60 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [notificationAnchor, setNotificationAnchor] = useState<null | HTMLElement>(null);
   const [unreadChatCount, setUnreadChatCount] = useState(0);
   const [lastCheckedChat, setLastCheckedChat] = useState<string | null>(null);
-  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | 'unsupported'>('default');
+  const [notificationDialogOpen, setNotificationDialogOpen] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [showInstallOption, setShowInstallOption] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
+
+  // Capture the beforeinstallprompt event for PWA install
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
+      setShowInstallOption(true);
+    };
+
+    const handleAppInstalled = () => {
+      setDeferredPrompt(null);
+      setShowInstallOption(false);
+      setSnackbarMessage('App installed successfully!');
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    // Check if app is already installed (standalone mode)
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      setShowInstallOption(false);
+    }
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, []);
+
+  // Handle PWA install
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) {
+      setSnackbarMessage('Install option not available. Try using your browser menu to add to home screen.');
+      return;
+    }
+
+    try {
+      await deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setSnackbarMessage('Installing app...');
+      }
+      setDeferredPrompt(null);
+      setShowInstallOption(false);
+    } catch (error) {
+      console.error('Install error:', error);
+    }
+    setAnchorEl(null);
+  };
 
   // Fetch unread chat count
   const fetchUnreadCount = useCallback(async () => {
@@ -91,22 +167,40 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, [isLoggedIn, lastCheckedChat, notificationPermission, pathname, unreadChatCount]);
 
+  // Check notification support and permission
+  const checkNotificationSupport = useCallback(() => {
+    if (!('Notification' in window)) {
+      setNotificationPermission('unsupported');
+      return false;
+    }
+    setNotificationPermission(Notification.permission);
+    return true;
+  }, []);
+
   // Request notification permission
   const requestNotificationPermission = useCallback(async () => {
-    if (!('Notification' in window)) return;
+    if (!checkNotificationSupport()) {
+      setNotificationDialogOpen(true);
+      return;
+    }
 
     if (Notification.permission === 'default') {
       const permission = await Notification.requestPermission();
       setNotificationPermission(permission);
-    } else {
-      setNotificationPermission(Notification.permission);
+      if (permission === 'granted') {
+        setSnackbarMessage('Notifications enabled!');
+      } else if (permission === 'denied') {
+        setSnackbarMessage('Notifications blocked. Enable them in browser settings.');
+      }
+    } else if (Notification.permission === 'denied') {
+      setNotificationDialogOpen(true);
     }
-  }, []);
+  }, [checkNotificationSupport]);
 
   // Initialize notification permission and fetch unread count
   useEffect(() => {
     if (isLoggedIn) {
-      requestNotificationPermission();
+      checkNotificationSupport();
       fetchUnreadCount();
 
       // Load last checked timestamp from localStorage
@@ -115,7 +209,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         setLastCheckedChat(stored);
       }
     }
-  }, [isLoggedIn, requestNotificationPermission, fetchUnreadCount]);
+  }, [isLoggedIn, checkNotificationSupport, fetchUnreadCount]);
 
   // Poll for new messages every 30 seconds
   useEffect(() => {
@@ -139,6 +233,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     pathname.startsWith(item.path)
   );
 
+  const getMobileNavIndex = () => {
+    if (pathname.startsWith('/dashboard')) return 0;
+    if (pathname.startsWith('/team')) return 1;
+    if (pathname.includes('/media')) return 2;
+    if (pathname.startsWith('/schedule')) return 3;
+    if (pathname.startsWith('/chat')) return 4;
+    return -1;
+  };
+
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
   };
@@ -151,8 +254,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     setAnchorEl(null);
   };
 
-  const handleNotificationOpen = (event: React.MouseEvent<HTMLElement>) => {
-    setNotificationAnchor(event.currentTarget);
+  const handleNotificationClick = (event: React.MouseEvent<HTMLElement>) => {
+    if (notificationPermission === 'unsupported' || notificationPermission === 'denied') {
+      setNotificationDialogOpen(true);
+    } else if (notificationPermission === 'default') {
+      requestNotificationPermission();
+    } else {
+      setNotificationAnchor(event.currentTarget);
+    }
   };
 
   const handleNotificationClose = () => {
@@ -294,9 +403,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               {navItems.find((item) => pathname.startsWith(item.path))?.label || 'Shuck-in'}
             </Typography>
 
-            <IconButton color="inherit" sx={{ mr: 1 }} onClick={handleNotificationOpen}>
+            <IconButton color="inherit" sx={{ mr: 1 }} onClick={handleNotificationClick}>
               <Badge badgeContent={0} color="error">
-                <Notifications />
+                {notificationPermission === 'granted' ? (
+                  <NotificationsActive />
+                ) : (
+                  <Notifications />
+                )}
               </Badge>
             </IconButton>
 
@@ -377,6 +490,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 </ListItemIcon>
                 Settings
               </MenuItem>
+              {showInstallOption && (
+                <MenuItem onClick={handleInstallClick}>
+                  <ListItemIcon>
+                    <InstallMobile fontSize="small" sx={{ color: '#00D9FF' }} />
+                  </ListItemIcon>
+                  <Typography sx={{ color: '#00D9FF' }}>Install App</Typography>
+                </MenuItem>
+              )}
               <MenuItem onClick={handleSignOut} sx={{ color: '#FF4757' }}>
                 <ListItemIcon>
                   <Logout fontSize="small" sx={{ color: '#FF4757' }} />
@@ -394,7 +515,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       {/* Mobile Bottom Navigation */}
       {isMobile && (
         <BottomNavigation
-          value={currentNavIndex}
+          value={getMobileNavIndex()}
           sx={{
             position: 'fixed',
             bottom: 0,
@@ -405,11 +526,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             paddingBottom: 'env(safe-area-inset-bottom)',
           }}
         >
-          {navItems.map((item) => (
+          {mobileNavItems.map((item) => (
             <BottomNavigationAction
               key={item.path}
               component={Link}
-              href={item.path}
+              href={item.path === '/media' ? '/team?tab=media' : item.path}
               label={item.label}
               icon={
                 item.path === '/chat' ? (
@@ -421,17 +542,65 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 )
               }
               sx={{
+                minWidth: 'auto',
                 '&.Mui-selected': {
                   '& .MuiBottomNavigationAction-label': {
-                    fontSize: '0.75rem',
+                    fontSize: '0.7rem',
                     fontWeight: 600,
                   },
+                },
+                '& .MuiBottomNavigationAction-label': {
+                  fontSize: '0.65rem',
                 },
               }}
             />
           ))}
         </BottomNavigation>
       )}
+
+      {/* Notification Not Supported Dialog */}
+      <Dialog open={notificationDialogOpen} onClose={() => setNotificationDialogOpen(false)}>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <NotificationsOff sx={{ color: 'warning.main' }} />
+          Notifications
+        </DialogTitle>
+        <DialogContent>
+          {notificationPermission === 'unsupported' ? (
+            <Typography>
+              Your browser doesn&apos;t support notifications. To receive notifications, please try:
+              <br /><br />
+              <strong>1.</strong> Using a supported browser (Chrome, Firefox, Edge, Safari 16.4+)
+              <br />
+              <strong>2.</strong> Installing this app on your home screen
+              <br />
+              <strong>3.</strong> Enabling notifications in your device settings
+            </Typography>
+          ) : (
+            <Typography>
+              Notifications are currently blocked. To enable them:
+              <br /><br />
+              <strong>1.</strong> Click the lock/info icon in your browser&apos;s address bar
+              <br />
+              <strong>2.</strong> Find &quot;Notifications&quot; in the site settings
+              <br />
+              <strong>3.</strong> Change from &quot;Block&quot; to &quot;Allow&quot;
+              <br />
+              <strong>4.</strong> Refresh the page
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setNotificationDialogOpen(false)}>Got it</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar for messages */}
+      <Snackbar
+        open={!!snackbarMessage}
+        autoHideDuration={4000}
+        onClose={() => setSnackbarMessage(null)}
+        message={snackbarMessage}
+      />
     </Box>
   );
 }

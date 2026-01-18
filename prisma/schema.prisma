@@ -50,6 +50,40 @@ model Team {
   games    Game[]
   messages Message[]
   media    TeamMedia[]
+  chirpers Chirper[]
+}
+
+// AI Sports Figure that comments in team chat
+model Chirper {
+  id          String   @id @default(cuid())
+  name        String   // e.g. "Wayne Gretzky"
+  nickname    String?  // e.g. "The Great One"
+  avatar      String?  // URL or base64 image
+  personality String   @db.Text // Personality description for AI
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  messages ChirperMessage[]
+
+  @@index([teamId])
+}
+
+// Messages from AI Chirpers
+model ChirperMessage {
+  id        String   @id @default(cuid())
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+
+  chirperId String
+  chirper   Chirper @relation(fields: [chirperId], references: [id], onDelete: Cascade)
+
+  teamId String
+
+  @@index([teamId, createdAt(sort: Desc)])
 }
 
 model TeamMember {
@@ -90,6 +124,10 @@ model Game {
   endTime     DateTime?
   notes       String?
   rsvpDeadline DateTime?
+  // Score tracking
+  teamScore     Int?
+  opponentScore Int?
+  result        GameResult?
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
@@ -98,6 +136,12 @@ model Game {
 
   rsvps    GameRsvp[]
   reminders ReminderSent[]
+}
+
+enum GameResult {
+  WIN
+  LOSS
+  TIE
 }
 
 enum GameType {

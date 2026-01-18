@@ -15,6 +15,10 @@ const updateGameSchema = z.object({
   endTime: z.string().datetime().optional().nullable(),
   notes: z.string().max(1000).optional().nullable(),
   rsvpDeadline: z.string().datetime().optional().nullable(),
+  // Score fields
+  teamScore: z.number().int().min(0).optional().nullable(),
+  opponentScore: z.number().int().min(0).optional().nullable(),
+  result: z.enum(['WIN', 'LOSS', 'TIE']).optional().nullable(),
 });
 
 export async function GET(
@@ -137,10 +141,25 @@ export async function PATCH(
     const body = await request.json();
     const validatedData = updateGameSchema.parse(body);
 
+    // Auto-calculate result from scores if both are provided
+    let result = validatedData.result;
+    if (validatedData.teamScore !== undefined && validatedData.opponentScore !== undefined) {
+      if (validatedData.teamScore !== null && validatedData.opponentScore !== null) {
+        if (validatedData.teamScore > validatedData.opponentScore) {
+          result = 'WIN';
+        } else if (validatedData.teamScore < validatedData.opponentScore) {
+          result = 'LOSS';
+        } else {
+          result = 'TIE';
+        }
+      }
+    }
+
     const game = await prisma.game.update({
       where: { id: gameId },
       data: {
         ...validatedData,
+        result,
         startTime: validatedData.startTime ? new Date(validatedData.startTime) : undefined,
         endTime: validatedData.endTime ? new Date(validatedData.endTime) : undefined,
         rsvpDeadline: validatedData.rsvpDeadline ? new Date(validatedData.rsvpDeadline) : undefined,
