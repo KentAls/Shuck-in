@@ -32,6 +32,8 @@ import {
   Cancel,
   HelpOutline,
   PersonAdd,
+  Star,
+  StarBorder,
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { format, formatDistanceToNow } from 'date-fns';
@@ -49,6 +51,7 @@ interface Game {
   startTime: string;
   gameType: string;
   team: {
+    id: string;
     name: string;
     color: string;
   };
@@ -83,6 +86,7 @@ interface UserStats {
 }
 
 const ONBOARDING_KEY = 'shuckin_onboarding_complete';
+const DEFAULT_TEAM_KEY = 'shuckin_default_team';
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -93,6 +97,7 @@ export default function DashboardPage() {
   const [rsvpLoading, setRsvpLoading] = useState<string | null>(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [defaultTeamId, setDefaultTeamId] = useState<string | null>(null);
 
   // Check if user has completed onboarding
   useEffect(() => {
@@ -103,6 +108,60 @@ export default function DashboardPage() {
       return () => clearTimeout(timer);
     }
   }, []);
+
+  // Load default team from localStorage
+  useEffect(() => {
+    const storedDefaultTeam = localStorage.getItem(DEFAULT_TEAM_KEY);
+    if (storedDefaultTeam) {
+      setDefaultTeamId(storedDefaultTeam);
+    }
+  }, []);
+
+  // Set default team when user only has one team
+  useEffect(() => {
+    if (teams.length === 1 && !defaultTeamId) {
+      setDefaultTeamId(teams[0].id);
+      localStorage.setItem(DEFAULT_TEAM_KEY, teams[0].id);
+    }
+  }, [teams, defaultTeamId]);
+
+  const handleSetDefaultTeam = (teamId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (defaultTeamId === teamId) {
+      // Unset default
+      setDefaultTeamId(null);
+      localStorage.removeItem(DEFAULT_TEAM_KEY);
+      setSnackbar({ open: true, message: 'Default team removed', severity: 'success' });
+    } else {
+      // Set as default
+      setDefaultTeamId(teamId);
+      localStorage.setItem(DEFAULT_TEAM_KEY, teamId);
+      const team = teams.find(t => t.id === teamId);
+      setSnackbar({ open: true, message: `${team?.name} set as default team`, severity: 'success' });
+    }
+  };
+
+  // Sort teams to show default team first
+  const sortedTeams = [...teams].sort((a, b) => {
+    if (a.id === defaultTeamId) return -1;
+    if (b.id === defaultTeamId) return 1;
+    return 0;
+  });
+
+  // Get default team data
+  const defaultTeam = teams.find(t => t.id === defaultTeamId);
+
+  // Filter upcoming games to prioritize default team
+  const sortedUpcomingGames = [...upcomingGames].sort((a, b) => {
+    if (defaultTeamId) {
+      const aIsDefault = a.team && a.team.id === defaultTeamId;
+      const bIsDefault = b.team && b.team.id === defaultTeamId;
+      if (aIsDefault && !bIsDefault) return -1;
+      if (!aIsDefault && bIsDefault) return 1;
+    }
+    return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
+  });
 
   const handleOnboardingComplete = () => {
     localStorage.setItem(ONBOARDING_KEY, 'true');
@@ -168,8 +227,8 @@ export default function DashboardPage() {
     }
   };
 
-  // Games that need RSVP (no response or pending)
-  const pendingRsvpGames = upcomingGames.filter(
+  // Games that need RSVP (no response or pending) - prioritize default team
+  const pendingRsvpGames = sortedUpcomingGames.filter(
     (game) => !game.userRsvp || game.userRsvp.status === 'PENDING'
   );
 
@@ -457,7 +516,7 @@ export default function DashboardPage() {
                 <Skeleton key={i} variant="rounded" height={140} />
               ))}
             </Stack>
-          ) : upcomingGames.length === 0 ? (
+          ) : sortedUpcomingGames.length === 0 ? (
             <Card sx={{ textAlign: 'center', py: 6 }}>
               <CalendarMonth sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />
               <Typography variant="h6" color="text.secondary" sx={{ mb: 2 }}>
@@ -474,7 +533,9 @@ export default function DashboardPage() {
             </Card>
           ) : (
             <Stack spacing={2}>
-              {upcomingGames.slice(0, 5).map((game, index) => (
+              {sortedUpcomingGames.slice(0, 5).map((game, index) => {
+                const isDefaultTeamGame = defaultTeamId && game.team.id === defaultTeamId;
+                return (
                 <Link key={game.id} href={`/schedule/${game.id}`} style={{ textDecoration: 'none' }}>
                 <MotionCard
                   initial={{ opacity: 0, y: 20 }}
@@ -484,6 +545,9 @@ export default function DashboardPage() {
                     cursor: 'pointer',
                     borderLeft: '4px solid',
                     borderLeftColor: game.team.color,
+                    ...(isDefaultTeamGame && {
+                      background: `linear-gradient(135deg, ${alpha(game.team.color, 0.1)} 0%, ${alpha(game.team.color, 0.02)} 100%)`,
+                    }),
                   }}
                 >
                   <CardContent>
@@ -572,7 +636,8 @@ export default function DashboardPage() {
                   </CardContent>
                 </MotionCard>
                 </Link>
-              ))}
+              );
+              })}
             </Stack>
           )}
         </Grid>
@@ -603,7 +668,7 @@ export default function DashboardPage() {
             </Stack>
           ) : (
             <Stack spacing={2}>
-              {teams.map((team, index) => (
+              {sortedTeams.map((team, index) => (
                 <Link key={team.id} href={`/team/${team.id}`} style={{ textDecoration: 'none' }}>
                 <MotionCard
                   initial={{ opacity: 0, x: 20 }}
@@ -613,21 +678,56 @@ export default function DashboardPage() {
                     cursor: 'pointer',
                     borderLeft: '4px solid',
                     borderLeftColor: team.color,
+                    ...(team.id === defaultTeamId && {
+                      background: `linear-gradient(135deg, ${alpha(team.color, 0.15)} 0%, ${alpha(team.color, 0.05)} 100%)`,
+                      border: `1px solid ${alpha(team.color, 0.3)}`,
+                      borderLeftWidth: '4px',
+                    }),
                   }}
                 >
                   <CardContent>
-                    <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
-                      {team.name}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                      {team.sport}
-                    </Typography>
-                    <Chip
-                      icon={<Groups fontSize="small" />}
-                      label={`${team._count.members} players`}
-                      size="small"
-                      variant="outlined"
-                    />
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
+                          {team.name}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                          {team.sport}
+                        </Typography>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Chip
+                            icon={<Groups fontSize="small" />}
+                            label={`${team._count.members} players`}
+                            size="small"
+                            variant="outlined"
+                          />
+                          {team.id === defaultTeamId && (
+                            <Chip
+                              label="Default"
+                              size="small"
+                              sx={{
+                                backgroundColor: alpha('#FFB800', 0.15),
+                                color: '#FFB800',
+                                fontWeight: 600,
+                              }}
+                            />
+                          )}
+                        </Stack>
+                      </Box>
+                      <IconButton
+                        onClick={(e) => handleSetDefaultTeam(team.id, e)}
+                        sx={{
+                          color: team.id === defaultTeamId ? '#FFB800' : 'text.secondary',
+                          '&:hover': {
+                            color: '#FFB800',
+                            backgroundColor: alpha('#FFB800', 0.1),
+                          },
+                        }}
+                        title={team.id === defaultTeamId ? 'Remove as default' : 'Set as default team'}
+                      >
+                        {team.id === defaultTeamId ? <Star /> : <StarBorder />}
+                      </IconButton>
+                    </Box>
                   </CardContent>
                 </MotionCard>
                 </Link>
