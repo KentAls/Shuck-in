@@ -25,6 +25,8 @@ import {
   Notifications,
   Logout,
   BugReport,
+  CameraAlt,
+  Delete,
 } from '@mui/icons-material';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
@@ -52,6 +54,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingNotifications, setSavingNotifications] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
   const [formData, setFormData] = useState({
     name: '',
@@ -202,6 +205,69 @@ export default function SettingsPage() {
     router.push('/api/hellocoop?op=logout&target_uri=/');
   };
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      setSnackbar({ open: true, message: 'Invalid file type. Use JPEG, PNG, GIF, or WebP', severity: 'error' });
+      return;
+    }
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      setSnackbar({ open: true, message: 'File too large. Maximum size is 5MB', severity: 'error' });
+      return;
+    }
+
+    setUploadingAvatar(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/user/avatar', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (res.ok) {
+        await refresh();
+        setSnackbar({ open: true, message: 'Profile picture updated!', severity: 'success' });
+      } else {
+        const data = await res.json();
+        setSnackbar({ open: true, message: data.error || 'Failed to upload picture', severity: 'error' });
+      }
+    } catch (error) {
+      setSnackbar({ open: true, message: 'Something went wrong', severity: 'error' });
+    } finally {
+      setUploadingAvatar(false);
+      // Reset input
+      e.target.value = '';
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    setUploadingAvatar(true);
+    try {
+      const res = await fetch('/api/user/avatar', {
+        method: 'DELETE',
+      });
+
+      if (res.ok) {
+        await refresh();
+        setSnackbar({ open: true, message: 'Profile picture removed', severity: 'success' });
+      } else {
+        setSnackbar({ open: true, message: 'Failed to remove picture', severity: 'error' });
+      }
+    } catch (error) {
+      setSnackbar({ open: true, message: 'Something went wrong', severity: 'error' });
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
   return (
     <Box sx={{ maxWidth: 700, mx: 'auto' }}>
       <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
@@ -223,21 +289,64 @@ export default function SettingsPage() {
             </Typography>
 
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, mb: 4 }}>
-              <Avatar
-                src={user?.image || undefined}
-                alt={user?.name || 'User'}
-                sx={{
-                  width: 80,
-                  height: 80,
-                  border: '3px solid',
-                  borderColor: '#00D9FF',
-                }}
-              />
+              <Box sx={{ position: 'relative' }}>
+                <Avatar
+                  src={user?.image || undefined}
+                  alt={user?.name || 'User'}
+                  sx={{
+                    width: 80,
+                    height: 80,
+                    border: '3px solid',
+                    borderColor: '#00D9FF',
+                  }}
+                />
+                {/* Camera overlay button */}
+                <Box
+                  component="label"
+                  sx={{
+                    position: 'absolute',
+                    bottom: -4,
+                    right: -4,
+                    width: 32,
+                    height: 32,
+                    borderRadius: '50%',
+                    backgroundColor: '#00D9FF',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: uploadingAvatar ? 'wait' : 'pointer',
+                    '&:hover': {
+                      backgroundColor: '#00B8D9',
+                    },
+                  }}
+                >
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/gif,image/webp"
+                    onChange={handleAvatarUpload}
+                    disabled={uploadingAvatar}
+                    style={{ display: 'none' }}
+                  />
+                  <CameraAlt sx={{ fontSize: 18, color: '#0A0E17' }} />
+                </Box>
+              </Box>
               <Box>
                 <Typography variant="h6">{user?.name}</Typography>
                 <Typography variant="body2" color="text.secondary">
                   {user?.email}
                 </Typography>
+                {user?.image && (
+                  <Button
+                    size="small"
+                    color="error"
+                    startIcon={<Delete sx={{ fontSize: 16 }} />}
+                    onClick={handleRemoveAvatar}
+                    disabled={uploadingAvatar}
+                    sx={{ mt: 1, fontSize: 12 }}
+                  >
+                    Remove photo
+                  </Button>
+                )}
               </Box>
             </Box>
 
