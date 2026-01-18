@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 // POST - Generate a chirper message based on recent chat context
 export async function POST(
   request: NextRequest,
-  { params }: { params: { teamId: string } }
+  { params }: { params: Promise<{ teamId: string }> }
 ) {
   try {
     const { isLoggedIn, user } = await getAuth();
@@ -15,7 +15,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { teamId } = params;
+    const { teamId } = await params;
 
     // Check if user is a member of the team
     const membership = await prisma.teamMember.findFirst({

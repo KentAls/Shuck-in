@@ -19,7 +19,7 @@ const updateChirperSchema = createChirperSchema.partial().extend({
 // GET - List all chirpers for a team
 export async function GET(
   request: NextRequest,
-  { params }: { params: { teamId: string } }
+  { params }: { params: Promise<{ teamId: string }> }
 ) {
   try {
     const { isLoggedIn, user } = await getAuth();
@@ -27,7 +27,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { teamId } = params;
+    const { teamId } = await params;
 
     // Check if user is a member of the team
     const membership = await prisma.teamMember.findFirst({
@@ -57,7 +57,7 @@ export async function GET(
 // POST - Create a new chirper (admin only)
 export async function POST(
   request: NextRequest,
-  { params }: { params: { teamId: string } }
+  { params }: { params: Promise<{ teamId: string }> }
 ) {
   try {
     const { isLoggedIn, user } = await getAuth();
@@ -65,7 +65,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { teamId } = params;
+    const { teamId } = await params;
 
     // Check if user is admin or owner
     const membership = await prisma.teamMember.findFirst({
