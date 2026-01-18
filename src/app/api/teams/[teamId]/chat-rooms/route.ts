@@ -75,6 +75,15 @@ export async function GET(
       return NextResponse.json([defaultRoom]);
     }
 
+    // Always migrate orphaned messages to default room
+    const defaultRoom = chatRooms.find((r: typeof chatRooms[number]) => r.isDefault);
+    if (defaultRoom) {
+      await prisma.message.updateMany({
+        where: { teamId, chatRoomId: null },
+        data: { chatRoomId: defaultRoom.id },
+      });
+    }
+
     return NextResponse.json(chatRooms);
   } catch (error) {
     console.error('Error fetching chat rooms:', error);
