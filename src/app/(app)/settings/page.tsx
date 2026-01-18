@@ -24,7 +24,9 @@ import {
   SportsScore,
   Notifications,
   Logout,
+  BugReport,
 } from '@mui/icons-material';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useRouter } from 'next/navigation';
@@ -428,6 +430,37 @@ export default function SettingsPage() {
               >
                 Sign Out
               </Button>
+            </Stack>
+          </CardContent>
+        </MotionCard>
+
+        {/* Developer Section */}
+        <MotionCard
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <CardContent sx={{ p: 4 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+              <BugReport sx={{ color: '#FFB800' }} />
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                Developer
+              </Typography>
+            </Box>
+
+            <Stack spacing={2}>
+              <Button
+                component={Link}
+                href="/debug"
+                variant="outlined"
+                startIcon={<BugReport />}
+                sx={{ alignSelf: 'flex-start' }}
+              >
+                Debug Info
+              </Button>
+              <Typography variant="body2" color="text.secondary">
+                View diagnostic information about your account, teams, and games
+              </Typography>
             </Stack>
           </CardContent>
         </MotionCard>
