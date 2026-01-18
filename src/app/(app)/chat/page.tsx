@@ -31,6 +31,8 @@ import {
   ListItemIcon,
   Divider,
   Collapse,
+  CircularProgress,
+  LinearProgress,
 } from '@mui/material';
 import {
   Send,
@@ -47,6 +49,10 @@ import {
   ExpandLess,
   ArrowBack,
   MeetingRoom,
+  AttachFile,
+  Image as ImageIcon,
+  Close,
+  CloudUpload,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, isToday, isYesterday } from 'date-fns';
@@ -83,6 +89,8 @@ interface Message {
   isChirper?: boolean;
   chirperName?: string;
   chirperAvatar?: string;
+  mediaUrl?: string | null;
+  mediaType?: 'PHOTO' | 'VIDEO' | null;
   user: {
     id: string;
     name: string | null;
@@ -119,8 +127,16 @@ export default function ChatPage() {
   const [roomMenuAnchor, setRoomMenuAnchor] = useState<null | HTMLElement>(null);
   const [selectedRoomForMenu, setSelectedRoomForMenu] = useState<ChatRoom | null>(null);
 
+  // Media upload states
+  const [mediaUploadOpen, setMediaUploadOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const previousMessagesLengthRef = useRef(0);
 
   const selectedTeam = teams.find((t) => t.id === selectedTeamId);
@@ -303,6 +319,86 @@ export default function ChatPage() {
       showNetworkError(error, '/api/messages');
     } finally {
       setSending(false);
+    }
+  };
+
+  // Media upload handlers
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSelectedFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+    setMediaUploadOpen(true);
+  };
+
+  const closeMediaUpload = () => {
+    setMediaUploadOpen(false);
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    setUploadProgress(0);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleMediaUpload = async () => {
+    if (!selectedFile || !selectedTeamId || !selectedRoomId) return;
+
+    setUploading(true);
+    setUploadProgress(10);
+
+    try {
+      // Upload to media library
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('title', `Chat: ${selectedFile.name}`);
+
+      setUploadProgress(30);
+
+      const mediaRes = await fetch(`/api/teams/${selectedTeamId}/media`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!mediaRes.ok) {
+        await showApiError(mediaRes, 'Failed to upload media');
+        return;
+      }
+
+      const mediaData = await mediaRes.json();
+      setUploadProgress(70);
+
+      // Send message with media URL
+      const messageContent = mediaData.type === 'PHOTO'
+        ? `[Image](${mediaData.url})`
+        : `[Video](${mediaData.url})`;
+
+      const res = await fetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          teamId: selectedTeamId,
+          chatRoomId: selectedRoomId,
+          content: messageContent,
+          mediaUrl: mediaData.url,
+          mediaType: mediaData.type,
+        }),
+      });
+
+      setUploadProgress(100);
+
+      if (res.ok) {
+        const newMsg = await res.json();
+        setMessages((prev) => [...prev, newMsg]);
+        setTimeout(() => scrollToBottom(), 100);
+        closeMediaUpload();
+      } else {
+        await showApiError(res, 'Failed to send message');
+      }
+    } catch (error) {
+      showNetworkError(error, '/api/messages');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -723,8 +819,8 @@ export default function ChatPage() {
                               )}
                               <Box
                                 sx={{
-                                  p: 1.5,
-                                  px: 2,
+                                  p: message.mediaUrl ? 0.5 : 1.5,
+                                  px: message.mediaUrl ? 0.5 : 2,
                                   borderRadius: 3,
                                   backgroundColor: isOwn
                                     ? selectedTeam.color
@@ -736,11 +832,41 @@ export default function ChatPage() {
                                   borderTopRightRadius: isOwn && !showAvatar ? 8 : undefined,
                                   border: isChirper ? '1px solid' : undefined,
                                   borderColor: isChirper ? alpha('#FFD700', 0.3) : undefined,
+                                  overflow: 'hidden',
                                 }}
                               >
-                                <Typography variant="body2" sx={{ wordBreak: 'break-word' }}>
-                                  {message.content}
-                                </Typography>
+                                {message.mediaUrl && message.mediaType === 'PHOTO' && (
+                                  <Box
+                                    component="img"
+                                    src={message.mediaUrl}
+                                    sx={{
+                                      maxWidth: 250,
+                                      maxHeight: 300,
+                                      borderRadius: 2,
+                                      display: 'block',
+                                      cursor: 'pointer',
+                                    }}
+                                    onClick={() => window.open(message.mediaUrl!, '_blank')}
+                                  />
+                                )}
+                                {message.mediaUrl && message.mediaType === 'VIDEO' && (
+                                  <Box
+                                    component="video"
+                                    src={message.mediaUrl}
+                                    controls
+                                    sx={{
+                                      maxWidth: 250,
+                                      maxHeight: 300,
+                                      borderRadius: 2,
+                                      display: 'block',
+                                    }}
+                                  />
+                                )}
+                                {!message.mediaUrl && (
+                                  <Typography variant="body2" sx={{ wordBreak: 'break-word' }}>
+                                    {message.content}
+                                  </Typography>
+                                )}
                               </Box>
                               <Typography
                                 variant="caption"
@@ -790,6 +916,14 @@ export default function ChatPage() {
                     backgroundColor: alpha('#000', 0.2),
                   }}
                 >
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime"
+                    onChange={handleFileSelect}
+                    ref={fileInputRef}
+                    style={{ display: 'none' }}
+                    id="chat-media-upload"
+                  />
                   <TextField
                     fullWidth
                     placeholder="Type a message..."
@@ -798,6 +932,15 @@ export default function ChatPage() {
                     variant="outlined"
                     size="small"
                     InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <label htmlFor="chat-media-upload">
+                            <IconButton component="span" size="small">
+                              <AttachFile fontSize="small" />
+                            </IconButton>
+                          </label>
+                        </InputAdornment>
+                      ),
                       endAdornment: (
                         <InputAdornment position="end">
                           <IconButton
@@ -961,6 +1104,69 @@ export default function ChatPage() {
           <Button onClick={() => setDeleteConfirmOpen(false)}>Cancel</Button>
           <Button onClick={handleDeleteRoom} color="error" variant="contained">
             Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Media Upload Dialog */}
+      <Dialog open={mediaUploadOpen} onClose={closeMediaUpload} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          Share Media
+          <IconButton onClick={closeMediaUpload} size="small">
+            <Close />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent>
+          {previewUrl && selectedFile && (
+            <Box sx={{ mb: 2 }}>
+              {selectedFile.type.startsWith('image/') ? (
+                <Box
+                  component="img"
+                  src={previewUrl}
+                  sx={{
+                    width: '100%',
+                    maxHeight: 300,
+                    objectFit: 'contain',
+                    borderRadius: 1,
+                    bgcolor: 'black',
+                  }}
+                />
+              ) : (
+                <Box
+                  component="video"
+                  src={previewUrl}
+                  controls
+                  sx={{
+                    width: '100%',
+                    maxHeight: 300,
+                    borderRadius: 1,
+                    bgcolor: 'black',
+                  }}
+                />
+              )}
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                {selectedFile.name}
+              </Typography>
+            </Box>
+          )}
+          {uploading && (
+            <Box sx={{ mt: 2 }}>
+              <LinearProgress variant="determinate" value={uploadProgress} />
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                Uploading... {uploadProgress}%
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeMediaUpload} disabled={uploading}>Cancel</Button>
+          <Button
+            onClick={handleMediaUpload}
+            variant="contained"
+            disabled={!selectedFile || uploading}
+            startIcon={uploading ? <CircularProgress size={20} /> : <CloudUpload />}
+          >
+            {uploading ? 'Uploading...' : 'Share'}
           </Button>
         </DialogActions>
       </Dialog>
