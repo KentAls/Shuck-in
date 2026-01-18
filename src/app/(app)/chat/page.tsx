@@ -200,6 +200,7 @@ export default function ChatPage() {
 
   const fetchChatRooms = async () => {
     if (!selectedTeamId) return;
+    setRoomsLoading(true);
     try {
       const res = await fetch(`/api/teams/${selectedTeamId}/chat-rooms?includeArchived=true`);
       if (res.ok) {
@@ -218,11 +219,14 @@ export default function ChatPage() {
       }
     } catch (error) {
       showNetworkError(error, `/api/teams/${selectedTeamId}/chat-rooms`);
+    } finally {
+      setRoomsLoading(false);
     }
   };
 
   const fetchMessages = async (initialLoad = false) => {
     if (!selectedTeamId || !selectedRoomId) return;
+    if (initialLoad) setMessagesLoading(true);
     try {
       const res = await fetch(`/api/messages?teamId=${selectedTeamId}&chatRoomId=${selectedRoomId}`);
       if (res.ok) {
@@ -243,6 +247,8 @@ export default function ChatPage() {
       }
     } catch (error) {
       console.error('Error fetching messages:', error);
+    } finally {
+      if (initialLoad) setMessagesLoading(false);
     }
   };
 
@@ -450,8 +456,12 @@ export default function ChatPage() {
                     <ListItemButton
                       selected={selectedTeamId === team.id}
                       onClick={() => {
-                        setSelectedTeamId(team.id);
-                        setSelectedRoomId(null);
+                        if (selectedTeamId !== team.id) {
+                          setChatRooms([]);
+                          setMessages([]);
+                          setSelectedRoomId(null);
+                          setSelectedTeamId(team.id);
+                        }
                       }}
                       sx={{ borderRadius: 2, mb: 0.5 }}
                     >
@@ -470,8 +480,15 @@ export default function ChatPage() {
                     {/* Chat Rooms for Selected Team */}
                     {selectedTeamId === team.id && (
                       <Box sx={{ pl: 2, pr: 1, pb: 1 }}>
+                        {/* Loading state */}
+                        {roomsLoading && (
+                          <Box sx={{ py: 1 }}>
+                            <Skeleton variant="rounded" height={32} sx={{ mb: 0.5 }} />
+                            <Skeleton variant="rounded" height={32} />
+                          </Box>
+                        )}
                         {/* Active Rooms */}
-                        {activeRooms.map((room) => (
+                        {!roomsLoading && activeRooms.map((room) => (
                           <ListItemButton
                             key={room.id}
                             selected={selectedRoomId === room.id}
@@ -502,7 +519,7 @@ export default function ChatPage() {
                         ))}
 
                         {/* Create Room Button */}
-                        {canManageRooms && (
+                        {!roomsLoading && canManageRooms && (
                           <ListItemButton
                             onClick={() => setCreateRoomDialogOpen(true)}
                             sx={{ borderRadius: 1, py: 0.5, pl: 2, color: 'primary.main' }}
@@ -513,7 +530,7 @@ export default function ChatPage() {
                         )}
 
                         {/* Archived Rooms Toggle */}
-                        {archivedRooms.length > 0 && (
+                        {!roomsLoading && archivedRooms.length > 0 && (
                           <>
                             <ListItemButton
                               onClick={() => setShowArchived(!showArchived)}
@@ -608,7 +625,21 @@ export default function ChatPage() {
                   position: 'relative',
                 }}
               >
-                {messages.length === 0 ? (
+                {messagesLoading ? (
+                  <Box
+                    sx={{
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexDirection: 'column',
+                    }}
+                  >
+                    <Skeleton variant="circular" width={60} height={60} sx={{ mb: 2 }} />
+                    <Skeleton variant="text" width={150} />
+                    <Skeleton variant="text" width={200} />
+                  </Box>
+                ) : messages.length === 0 ? (
                   <Box
                     sx={{
                       flex: 1,
