@@ -46,11 +46,12 @@ model Team {
   ownerId String
   owner   User   @relation("TeamOwner", fields: [ownerId], references: [id])
 
-  members  TeamMember[]
-  games    Game[]
-  messages Message[]
-  media    TeamMedia[]
-  chirpers Chirper[]
+  members   TeamMember[]
+  games     Game[]
+  chatRooms ChatRoom[]
+  messages  Message[]
+  media     TeamMedia[]
+  chirpers  Chirper[]
 }
 
 // AI Sports Figure that comments in team chat
@@ -186,6 +187,23 @@ model ReminderSent {
   userId String
 }
 
+model ChatRoom {
+  id          String       @id @default(cuid())
+  name        String
+  description String?
+  isArchived  Boolean      @default(false)
+  isDefault   Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  messages Message[]
+
+  @@index([teamId, isArchived])
+}
+
 model Message {
   id        String   @id @default(cuid())
   content   String   @db.Text
@@ -196,6 +214,11 @@ model Message {
 
   teamId String
   team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  chatRoomId String?
+  chatRoom   ChatRoom? @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
+
+  @@index([chatRoomId, createdAt])
 }
 
 model TeamMedia {

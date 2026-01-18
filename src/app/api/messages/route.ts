@@ -7,6 +7,7 @@ export const dynamic = 'force-dynamic';
 
 const createMessageSchema = z.object({
   teamId: z.string(),
+  chatRoomId: z.string().optional(),
   content: z.string().min(1).max(2000),
 });
 
@@ -19,6 +20,7 @@ export async function GET(request: NextRequest) {
 
     const searchParams = request.nextUrl.searchParams;
     const teamId = searchParams.get('teamId');
+    const chatRoomId = searchParams.get('chatRoomId');
     const cursor = searchParams.get('cursor');
     const limit = parseInt(searchParams.get('limit') || '50', 10);
 
@@ -39,10 +41,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Not a team member' }, { status: 403 });
     }
 
+    // Build message filter
+    const messageFilter: { teamId: string; chatRoomId?: string | null } = { teamId };
+    if (chatRoomId) {
+      messageFilter.chatRoomId = chatRoomId;
+    }
+
     // Fetch both regular messages and chirper messages
     const [messages, chirperMessages] = await Promise.all([
       prisma.message.findMany({
-        where: { teamId },
+        where: messageFilter,
         include: {
           user: {
             select: {
@@ -122,7 +130,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { teamId, content } = createMessageSchema.parse(body);
+    const { teamId, chatRoomId, content } = createMessageSchema.parse(body);
 
     // Check if user is a member of the team
     const membership = await prisma.teamMember.findFirst({
@@ -137,11 +145,34 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Not a team member' }, { status: 403 });
     }
 
+    // If no chatRoomId provided, get or create the default room
+    let targetRoomId = chatRoomId;
+    if (!targetRoomId) {
+      const defaultRoom = await prisma.chatRoom.findFirst({
+        where: { teamId, isDefault: true },
+      });
+      if (defaultRoom) {
+        targetRoomId = defaultRoom.id;
+      } else {
+        // Create default room if it doesn't exist
+        const newRoom = await prisma.chatRoom.create({
+          data: {
+            name: 'General',
+            description: 'Main team chat',
+            isDefault: true,
+            teamId,
+          },
+        });
+        targetRoomId = newRoom.id;
+      }
+    }
+
     const message = await prisma.message.create({
       data: {
         teamId,
         userId: user.id,
         content,
+        chatRoomId: targetRoomId,
       },
       include: {
         user: {
