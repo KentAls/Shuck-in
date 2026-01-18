@@ -45,6 +45,8 @@ import {
   Chat as ChatIcon,
   ExpandMore,
   ExpandLess,
+  ArrowBack,
+  MeetingRoom,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, isToday, isYesterday } from 'date-fns';
@@ -594,26 +596,35 @@ export default function ChatPage() {
                   borderColor: 'divider',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 2,
+                  gap: 1,
                 }}
               >
-                <Avatar sx={{ bgcolor: alpha(selectedTeam.color, 0.2), color: selectedTeam.color }}>
+                {/* Back button for mobile */}
+                <IconButton
+                  onClick={() => setSelectedRoomId(null)}
+                  sx={{ display: { xs: 'flex', md: 'none' } }}
+                >
+                  <ArrowBack />
+                </IconButton>
+                <Avatar sx={{ bgcolor: alpha(selectedTeam.color, 0.2), color: selectedTeam.color, display: { xs: 'none', md: 'flex' } }}>
                   <ChatIcon />
                 </Avatar>
-                <Box sx={{ flex: 1 }}>
-                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography variant="h6" sx={{ fontWeight: 600, fontSize: { xs: '1rem', md: '1.25rem' } }} noWrap>
                     {selectedRoom.name}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" color="text.secondary" noWrap>
                     {selectedTeam.name} • {selectedRoom.description || 'Team chat'}
                   </Typography>
                 </Box>
                 {selectedRoom.isArchived && (
                   <Chip label="Archived" color="warning" size="small" />
                 )}
+                {/* Room selector for mobile */}
                 <IconButton
                   onClick={() => setCreateRoomDialogOpen(true)}
                   sx={{ display: { xs: 'flex', md: 'none' } }}
+                  title="New Room"
                 >
                   <Add />
                 </IconButton>
