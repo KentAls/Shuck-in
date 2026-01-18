@@ -43,6 +43,11 @@ import {
   PlayArrow,
   Groups,
   Compress,
+  Fullscreen,
+  FullscreenExit,
+  Download,
+  ZoomIn,
+  ZoomOut,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
@@ -101,8 +106,63 @@ export default function MediaPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [compressing, setCompressing] = useState(false);
   const [compressionProgress, setCompressionProgress] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(1);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const viewerDialogRef = useRef<HTMLDivElement>(null);
+
+  // Handle fullscreen toggle
+  const toggleFullscreen = async () => {
+    if (!viewerDialogRef.current) return;
+
+    try {
+      if (!document.fullscreenElement) {
+        await viewerDialogRef.current.requestFullscreen();
+        setIsFullscreen(true);
+      } else {
+        await document.exitFullscreen();
+        setIsFullscreen(false);
+      }
+    } catch (err) {
+      console.error('Fullscreen error:', err);
+    }
+  };
+
+  // Listen for fullscreen changes
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  // Handle download
+  const handleDownload = async (item: MediaItem) => {
+    try {
+      const response = await fetch(item.url);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = item.title || `media-${item.id}.${item.type === 'PHOTO' ? 'jpg' : 'mp4'}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Download error:', err);
+    }
+  };
+
+  // Reset zoom when closing viewer
+  useEffect(() => {
+    if (!selectedMedia) {
+      setZoomLevel(1);
+      setIsFullscreen(false);
+    }
+  }, [selectedMedia]);
 
   // Max size before compression (3MB - leaves room for base64 overhead)
   const MAX_UPLOAD_SIZE = 3 * 1024 * 1024;
@@ -610,17 +670,19 @@ export default function MediaPage() {
         onClose={() => setSelectedMedia(null)}
         maxWidth="lg"
         fullWidth
+        fullScreen={isFullscreen}
         PaperProps={{
-          sx: { bgcolor: '#0A0E17', maxHeight: '90vh' },
+          ref: viewerDialogRef,
+          sx: { bgcolor: '#0A0E17', maxHeight: isFullscreen ? '100vh' : '90vh' },
         }}
       >
         {selectedMedia && (
           <>
-            <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Avatar src={selectedMedia.uploadedBy.image || undefined} sx={{ width: 32, height: 32 }} />
-                <Box>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+            <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, minWidth: 0, flex: 1 }}>
+                <Avatar src={selectedMedia.uploadedBy.image || undefined} sx={{ width: 32, height: 32, flexShrink: 0 }} />
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }} noWrap>
                     {selectedMedia.title || selectedMedia.uploadedBy.name}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
@@ -628,7 +690,29 @@ export default function MediaPage() {
                   </Typography>
                 </Box>
               </Box>
-              <Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                {/* Zoom controls for photos */}
+                {selectedMedia.type === 'PHOTO' && (
+                  <>
+                    <IconButton onClick={() => setZoomLevel(z => Math.max(0.5, z - 0.25))} disabled={zoomLevel <= 0.5}>
+                      <ZoomOut />
+                    </IconButton>
+                    <Typography variant="caption" sx={{ mx: 0.5, minWidth: 40, textAlign: 'center' }}>
+                      {Math.round(zoomLevel * 100)}%
+                    </Typography>
+                    <IconButton onClick={() => setZoomLevel(z => Math.min(3, z + 0.25))} disabled={zoomLevel >= 3}>
+                      <ZoomIn />
+                    </IconButton>
+                  </>
+                )}
+                {/* Download button */}
+                <IconButton onClick={() => handleDownload(selectedMedia)} title="Download">
+                  <Download />
+                </IconButton>
+                {/* Fullscreen button */}
+                <IconButton onClick={toggleFullscreen} title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}>
+                  {isFullscreen ? <FullscreenExit /> : <Fullscreen />}
+                </IconButton>
                 {canDelete(selectedMedia) && (
                   <IconButton
                     onClick={() => {
@@ -636,24 +720,38 @@ export default function MediaPage() {
                       setDeleteConfirmOpen(true);
                     }}
                     color="error"
+                    title="Delete"
                   >
                     <Delete />
                   </IconButton>
                 )}
-                <IconButton onClick={() => setSelectedMedia(null)}>
+                <IconButton onClick={() => setSelectedMedia(null)} title="Close">
                   <Close />
                 </IconButton>
               </Box>
             </DialogTitle>
-            <DialogContent sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', p: 0 }}>
+            <DialogContent
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                p: 0,
+                overflow: 'auto',
+                bgcolor: '#000',
+              }}
+              onDoubleClick={() => selectedMedia.type === 'PHOTO' && setZoomLevel(z => z === 1 ? 2 : 1)}
+            >
               {selectedMedia.type === 'PHOTO' ? (
                 <Box
                   component="img"
                   src={selectedMedia.url}
                   sx={{
-                    maxWidth: '100%',
-                    maxHeight: 'calc(90vh - 150px)',
+                    maxWidth: zoomLevel === 1 ? '100%' : 'none',
+                    maxHeight: zoomLevel === 1 ? (isFullscreen ? 'calc(100vh - 120px)' : 'calc(90vh - 150px)') : 'none',
+                    width: zoomLevel !== 1 ? `${zoomLevel * 100}%` : 'auto',
                     objectFit: 'contain',
+                    transition: 'transform 0.2s',
+                    cursor: zoomLevel > 1 ? 'move' : 'zoom-in',
                   }}
                 />
               ) : (
@@ -664,12 +762,12 @@ export default function MediaPage() {
                   autoPlay
                   sx={{
                     maxWidth: '100%',
-                    maxHeight: 'calc(90vh - 150px)',
+                    maxHeight: isFullscreen ? 'calc(100vh - 120px)' : 'calc(90vh - 150px)',
                   }}
                 />
               )}
             </DialogContent>
-            {selectedMedia.description && (
+            {selectedMedia.description && !isFullscreen && (
               <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
                 <Typography variant="body2">{selectedMedia.description}</Typography>
               </Box>
