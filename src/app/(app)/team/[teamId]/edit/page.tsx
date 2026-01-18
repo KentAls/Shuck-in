@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Box,
@@ -18,8 +18,11 @@ import {
   Grid,
   Skeleton,
   Alert,
+  Avatar,
+  IconButton,
+  CircularProgress,
 } from '@mui/material';
-import { ArrowBack, SportsSoccer, SportsHockey, SportsBasketball, SportsTennis } from '@mui/icons-material';
+import { ArrowBack, SportsSoccer, SportsHockey, SportsBasketball, SportsTennis, PhotoCamera, Delete, Groups } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useError } from '@/components/providers/ErrorProvider';
@@ -59,6 +62,10 @@ export default function EditTeamPage({
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [logo, setLogo] = useState<string | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [logoError, setLogoError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     name: '',
     sport: '',
@@ -78,6 +85,7 @@ export default function EditTeamPage({
             description: team.description || '',
             color: team.color || colors[0],
           });
+          setLogo(team.logo || null);
         } else if (res.status === 403) {
           setError('You do not have permission to edit this team');
         } else if (res.status === 404) {
@@ -94,6 +102,62 @@ export default function EditTeamPage({
 
     fetchTeam();
   }, [teamId]);
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setLogoError(null);
+    setUploadingLogo(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch(`/api/teams/${teamId}/logo`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setLogo(data.logo);
+      } else {
+        const data = await res.json();
+        setLogoError(data.error || 'Failed to upload logo');
+      }
+    } catch (err) {
+      setLogoError('Failed to upload logo');
+    } finally {
+      setUploadingLogo(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemoveLogo = async () => {
+    setUploadingLogo(true);
+    setLogoError(null);
+
+    try {
+      const res = await fetch(`/api/teams/${teamId}/logo`, {
+        method: 'DELETE',
+      });
+
+      if (res.ok) {
+        setLogo(null);
+      } else {
+        const data = await res.json();
+        setLogoError(data.error || 'Failed to remove logo');
+      }
+    } catch (err) {
+      setLogoError('Failed to remove logo');
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -190,6 +254,88 @@ export default function EditTeamPage({
         <CardContent sx={{ p: { xs: 2, sm: 4 } }}>
           <form onSubmit={handleSubmit}>
             <Stack spacing={3}>
+              {/* Team Logo */}
+              <Box>
+                <Typography variant="subtitle2" sx={{ mb: 1.5, color: 'text.secondary' }}>
+                  Team Logo
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Box sx={{ position: 'relative' }}>
+                    <Avatar
+                      src={logo || undefined}
+                      sx={{
+                        width: 80,
+                        height: 80,
+                        bgcolor: alpha(formData.color, 0.2),
+                        color: formData.color,
+                        fontSize: '2rem',
+                      }}
+                    >
+                      {!logo && <Groups sx={{ fontSize: 40 }} />}
+                    </Avatar>
+                    {uploadingLogo && (
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          bgcolor: 'rgba(0,0,0,0.5)',
+                          borderRadius: '50%',
+                        }}
+                      >
+                        <CircularProgress size={24} />
+                      </Box>
+                    )}
+                  </Box>
+                  <Stack spacing={1}>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/gif,image/webp"
+                      onChange={handleLogoUpload}
+                      ref={fileInputRef}
+                      style={{ display: 'none' }}
+                      id="logo-upload"
+                    />
+                    <label htmlFor="logo-upload">
+                      <Button
+                        component="span"
+                        variant="outlined"
+                        size="small"
+                        startIcon={<PhotoCamera />}
+                        disabled={uploadingLogo}
+                      >
+                        {logo ? 'Change Logo' : 'Upload Logo'}
+                      </Button>
+                    </label>
+                    {logo && (
+                      <Button
+                        variant="text"
+                        size="small"
+                        color="error"
+                        startIcon={<Delete />}
+                        onClick={handleRemoveLogo}
+                        disabled={uploadingLogo}
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </Stack>
+                </Box>
+                {logoError && (
+                  <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block' }}>
+                    {logoError}
+                  </Typography>
+                )}
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                  Max 2MB. Supports JPEG, PNG, GIF, WebP.
+                </Typography>
+              </Box>
+
               <TextField
                 label="Team Name"
                 value={formData.name}

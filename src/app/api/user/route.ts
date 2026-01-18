@@ -6,7 +6,7 @@ import { z } from 'zod';
 export const dynamic = 'force-dynamic';
 
 const updateUserSchema = z.object({
-  name: z.string().min(1).max(100).optional(),
+  name: z.string().min(1, 'Name is required').max(100).optional(),
   phone: z.string().max(20).optional().nullable(),
   jerseyNumber: z.string().max(10).optional().nullable(),
   position: z.string().max(50).optional().nullable(),

@@ -29,6 +29,7 @@ model User {
   rsvps        GameRsvp[]
   messages     Message[]
   ownedTeams   Team[]       @relation("TeamOwner")
+  uploadedMedia TeamMedia[]
 }
 
 model Team {
@@ -48,6 +49,7 @@ model Team {
   members  TeamMember[]
   games    Game[]
   messages Message[]
+  media    TeamMedia[]
 }
 
 model TeamMember {
@@ -150,4 +152,30 @@ model Message {
 
   teamId String
   team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+}
+
+model TeamMedia {
+  id          String    @id @default(cuid())
+  type        MediaType
+  url         String    @db.Text
+  thumbnail   String?   @db.Text
+  title       String?
+  description String?
+  fileSize    Int?
+  mimeType    String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  uploadedById String
+  uploadedBy   User   @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([teamId, createdAt(sort: Desc)])
+}
+
+enum MediaType {
+  PHOTO
+  VIDEO
 }

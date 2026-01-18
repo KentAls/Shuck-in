@@ -15,6 +15,9 @@ import {
   Skeleton,
   alpha,
   IconButton,
+  Snackbar,
+  Alert,
+  CircularProgress,
 } from '@mui/material';
 import {
   CalendarMonth,
@@ -84,6 +87,8 @@ export default function DashboardPage() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [userStats, setUserStats] = useState<UserStats>({ gamesPlayed: 0, attendanceRate: 0 });
   const [loading, setLoading] = useState(true);
+  const [rsvpLoading, setRsvpLoading] = useState<string | null>(null);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -148,6 +153,37 @@ export default function DashboardPage() {
   const pendingRsvpGames = upcomingGames.filter(
     (game) => !game.userRsvp || game.userRsvp.status === 'PENDING'
   );
+
+  const handleQuickRsvp = async (gameId: string, status: 'IN' | 'OUT' | 'MAYBE') => {
+    setRsvpLoading(gameId);
+    try {
+      const res = await fetch(`/api/games/${gameId}/rsvp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+
+      if (res.ok) {
+        const updatedRsvp = await res.json();
+        // Update the games list with the new RSVP status
+        setUpcomingGames((prev) =>
+          prev.map((game) =>
+            game.id === gameId
+              ? { ...game, userRsvp: { status: updatedRsvp.status } }
+              : game
+          )
+        );
+        setSnackbar({ open: true, message: `You're ${status}!`, severity: 'success' });
+      } else {
+        const data = await res.json();
+        setSnackbar({ open: true, message: data.error || 'Failed to update RSVP', severity: 'error' });
+      }
+    } catch (error) {
+      setSnackbar({ open: true, message: 'Network error. Please try again.', severity: 'error' });
+    } finally {
+      setRsvpLoading(null);
+    }
+  };
 
   // If user has no teams, show join team prompt
   if (!loading && teams.length === 0) {
@@ -226,32 +262,62 @@ export default function DashboardPage() {
             </Typography>
             <Stack spacing={2}>
               {pendingRsvpGames.slice(0, 3).map((game) => (
-                <Link key={game.id} href={`/schedule/${game.id}`} style={{ textDecoration: 'none' }}>
-                  <Box
-                    sx={{
-                      p: 2,
-                      borderRadius: 2,
-                      backgroundColor: alpha('#000', 0.2),
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      cursor: 'pointer',
-                      '&:hover': { backgroundColor: alpha('#000', 0.3) },
-                    }}
-                  >
-                    <Box>
-                      <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                        {game.title}{game.opponent && ` vs ${game.opponent}`}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {game.team.name} • {format(new Date(game.startTime), 'EEE, MMM d @ h:mm a')}
-                      </Typography>
-                    </Box>
-                    <Button variant="contained" size="small" sx={{ bgcolor: '#FFB800', color: '#000' }}>
-                      RSVP Now
-                    </Button>
+                <Box
+                  key={game.id}
+                  sx={{
+                    p: 2,
+                    borderRadius: 2,
+                    backgroundColor: alpha('#000', 0.2),
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
+                    <Link href={`/schedule/${game.id}`} style={{ textDecoration: 'none', flex: 1 }}>
+                      <Box sx={{ cursor: 'pointer' }}>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#fff' }}>
+                          {game.title}{game.opponent && ` vs ${game.opponent}`}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {game.team.name} • {format(new Date(game.startTime), 'EEE, MMM d @ h:mm a')}
+                        </Typography>
+                      </Box>
+                    </Link>
                   </Box>
-                </Link>
+                  <Stack direction="row" spacing={1}>
+                    <Button
+                      variant="contained"
+                      size="small"
+                      color="success"
+                      startIcon={rsvpLoading === game.id ? <CircularProgress size={16} color="inherit" /> : <CheckCircle />}
+                      onClick={() => handleQuickRsvp(game.id, 'IN')}
+                      disabled={rsvpLoading === game.id}
+                      sx={{ flex: 1 }}
+                    >
+                      I&apos;m In
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      color="warning"
+                      startIcon={<HelpOutline />}
+                      onClick={() => handleQuickRsvp(game.id, 'MAYBE')}
+                      disabled={rsvpLoading === game.id}
+                      sx={{ flex: 1 }}
+                    >
+                      Maybe
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      color="error"
+                      startIcon={<Cancel />}
+                      onClick={() => handleQuickRsvp(game.id, 'OUT')}
+                      disabled={rsvpLoading === game.id}
+                      sx={{ flex: 1 }}
+                    >
+                      Out
+                    </Button>
+                  </Stack>
+                </Box>
               ))}
             </Stack>
           </CardContent>
@@ -554,6 +620,17 @@ export default function DashboardPage() {
           )}
         </Grid>
       </Grid>
+
+      {/* Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+      >
+        <Alert severity={snackbar.severity} onClose={() => setSnackbar({ ...snackbar, open: false })}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

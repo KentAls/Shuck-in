@@ -87,6 +87,7 @@ export async function GET(
       sport: team.sport,
       description: team.description,
       color: team.color,
+      logo: team.logo,
       inviteCode: team.inviteCode,
       owner: {
         id: team.owner.id,

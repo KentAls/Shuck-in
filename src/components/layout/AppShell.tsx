@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
 import {
   Box,
@@ -49,7 +49,7 @@ const navItems = [
 const drawerWidth = 260;
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, isLoggedIn } = useAuth();
   const pathname = usePathname();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -57,6 +57,83 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [notificationAnchor, setNotificationAnchor] = useState<null | HTMLElement>(null);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
+  const [lastCheckedChat, setLastCheckedChat] = useState<string | null>(null);
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
+
+  // Fetch unread chat count
+  const fetchUnreadCount = useCallback(async () => {
+    if (!isLoggedIn) return;
+
+    try {
+      const params = lastCheckedChat ? `?since=${lastCheckedChat}` : '';
+      const res = await fetch(`/api/messages/unread${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        const newCount = data.unreadCount;
+
+        // If we have new messages and notifications are enabled, show browser notification
+        if (newCount > unreadChatCount && notificationPermission === 'granted' && !pathname.startsWith('/chat')) {
+          const diff = newCount - unreadChatCount;
+          if (diff > 0) {
+            new Notification('New Team Messages', {
+              body: `You have ${diff} new message${diff > 1 ? 's' : ''}`,
+              icon: '/icon-192.png',
+              tag: 'chat-notification',
+            });
+          }
+        }
+
+        setUnreadChatCount(newCount);
+      }
+    } catch (error) {
+      console.error('Error fetching unread count:', error);
+    }
+  }, [isLoggedIn, lastCheckedChat, notificationPermission, pathname, unreadChatCount]);
+
+  // Request notification permission
+  const requestNotificationPermission = useCallback(async () => {
+    if (!('Notification' in window)) return;
+
+    if (Notification.permission === 'default') {
+      const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
+    } else {
+      setNotificationPermission(Notification.permission);
+    }
+  }, []);
+
+  // Initialize notification permission and fetch unread count
+  useEffect(() => {
+    if (isLoggedIn) {
+      requestNotificationPermission();
+      fetchUnreadCount();
+
+      // Load last checked timestamp from localStorage
+      const stored = localStorage.getItem('lastCheckedChat');
+      if (stored) {
+        setLastCheckedChat(stored);
+      }
+    }
+  }, [isLoggedIn, requestNotificationPermission, fetchUnreadCount]);
+
+  // Poll for new messages every 30 seconds
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    const interval = setInterval(fetchUnreadCount, 30000);
+    return () => clearInterval(interval);
+  }, [isLoggedIn, fetchUnreadCount]);
+
+  // Clear unread count when visiting chat page
+  useEffect(() => {
+    if (pathname.startsWith('/chat')) {
+      const now = new Date().toISOString();
+      setLastCheckedChat(now);
+      localStorage.setItem('lastCheckedChat', now);
+      setUnreadChatCount(0);
+    }
+  }, [pathname]);
 
   const currentNavIndex = navItems.findIndex((item) =>
     pathname.startsWith(item.path)
@@ -119,7 +196,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             onClick={() => isMobile && setMobileOpen(false)}
           >
             <ListItemIcon sx={{ color: pathname.startsWith(item.path) ? '#00D9FF' : 'text.secondary' }}>
-              {item.icon}
+              {item.path === '/chat' ? (
+                <Badge badgeContent={unreadChatCount} color="error" max={99}>
+                  {item.icon}
+                </Badge>
+              ) : (
+                item.icon
+              )}
             </ListItemIcon>
             <ListItemText primary={item.label} />
           </ListItemButton>
@@ -328,7 +411,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               component={Link}
               href={item.path}
               label={item.label}
-              icon={item.icon}
+              icon={
+                item.path === '/chat' ? (
+                  <Badge badgeContent={unreadChatCount} color="error" max={99}>
+                    {item.icon}
+                  </Badge>
+                ) : (
+                  item.icon
+                )
+              }
               sx={{
                 '&.Mui-selected': {
                   '& .MuiBottomNavigationAction-label': {
