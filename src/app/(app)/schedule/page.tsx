@@ -35,6 +35,7 @@ import {
 import { motion } from 'framer-motion';
 import { format, isSameDay, isAfter, isBefore, startOfToday, parseISO } from 'date-fns';
 import Link from 'next/link';
+import { getCacheKey, getCache, setCache, getStaleCache, CACHE_DURATIONS } from '@/lib/cache';
 
 const MotionCard = motion(Card);
 
@@ -83,6 +84,17 @@ export default function SchedulePage() {
   }, []);
 
   const fetchData = async () => {
+    // Load cached data immediately for fast initial render
+    const cachedGames = getStaleCache<Game[]>(getCacheKey('games'));
+    const cachedTeams = getStaleCache<Team[]>(getCacheKey('teams'));
+
+    if (cachedGames) {
+      const validGames = cachedGames.filter((g: Game) => g && g.team && g.team.id);
+      setGames(validGames);
+    }
+    if (cachedTeams) setTeams(cachedTeams);
+    if (cachedGames || cachedTeams) setLoading(false);
+
     try {
       const [gamesRes, teamsRes] = await Promise.all([
         fetch('/api/games'),
@@ -96,11 +108,13 @@ export default function SchedulePage() {
           ? gamesData.filter((g: Game) => g && g.team && g.team.id)
           : [];
         setGames(validGames);
+        setCache(getCacheKey('games'), validGames);
       }
 
       if (teamsRes.ok) {
         const teamsData = await teamsRes.json();
         setTeams(Array.isArray(teamsData) ? teamsData : []);
+        setCache(getCacheKey('teams'), teamsData);
       }
     } catch (error) {
       console.error('Error fetching data:', error);

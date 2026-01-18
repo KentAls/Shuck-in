@@ -48,6 +48,7 @@ import {
 } from '@mui/icons-material';
 import Link from 'next/link';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { useTeam } from '@/components/providers/TeamProvider';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -73,9 +74,11 @@ const drawerWidth = 260;
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const { user, isLoggedIn } = useAuth();
+  const { currentTeam, teams, setCurrentTeamId } = useTeam();
   const pathname = usePathname();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const [teamMenuAnchor, setTeamMenuAnchor] = useState<null | HTMLElement>(null);
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -418,6 +421,101 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 <MenuIcon />
               </IconButton>
             )}
+
+            {/* Current Team Logo & Selector */}
+            {currentTeam && (
+              <Box
+                onClick={(e) => teams.length > 1 ? setTeamMenuAnchor(e.currentTarget) : undefined}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  cursor: teams.length > 1 ? 'pointer' : 'default',
+                  mr: 2,
+                  p: 0.5,
+                  borderRadius: 2,
+                  '&:hover': teams.length > 1 ? {
+                    backgroundColor: alpha(currentTeam.color, 0.1),
+                  } : {},
+                }}
+              >
+                <Avatar
+                  src={currentTeam.logo || undefined}
+                  sx={{
+                    width: 36,
+                    height: 36,
+                    bgcolor: alpha(currentTeam.color, 0.2),
+                    color: currentTeam.color,
+                    border: '2px solid',
+                    borderColor: currentTeam.color,
+                    fontSize: '0.875rem',
+                    fontWeight: 700,
+                  }}
+                >
+                  {!currentTeam.logo && currentTeam.name.substring(0, 2).toUpperCase()}
+                </Avatar>
+                {!isMobile && (
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600, color: currentTeam.color }}>
+                    {currentTeam.name}
+                  </Typography>
+                )}
+              </Box>
+            )}
+
+            {/* Team Switcher Menu */}
+            <Menu
+              anchorEl={teamMenuAnchor}
+              open={Boolean(teamMenuAnchor)}
+              onClose={() => setTeamMenuAnchor(null)}
+              PaperProps={{
+                sx: {
+                  mt: 1,
+                  minWidth: 220,
+                  background: '#1E293B',
+                  border: '1px solid',
+                  borderColor: alpha('#00D9FF', 0.2),
+                },
+              }}
+            >
+              <Box sx={{ px: 2, py: 1 }}>
+                <Typography variant="caption" color="text.secondary">
+                  Switch Team
+                </Typography>
+              </Box>
+              {teams.map((team) => (
+                <MenuItem
+                  key={team.id}
+                  selected={team.id === currentTeam?.id}
+                  onClick={() => {
+                    setCurrentTeamId(team.id);
+                    setTeamMenuAnchor(null);
+                  }}
+                  sx={{ gap: 1.5 }}
+                >
+                  <Avatar
+                    src={team.logo || undefined}
+                    sx={{
+                      width: 28,
+                      height: 28,
+                      bgcolor: alpha(team.color, 0.2),
+                      color: team.color,
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                    }}
+                  >
+                    {!team.logo && team.name.substring(0, 2).toUpperCase()}
+                  </Avatar>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                      {team.name}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {team.sport}
+                    </Typography>
+                  </Box>
+                </MenuItem>
+              ))}
+            </Menu>
 
             <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 600 }}>
               {navItems.find((item) => pathname.startsWith(item.path))?.label || 'Shuck-in'}

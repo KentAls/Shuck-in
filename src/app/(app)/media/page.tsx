@@ -55,6 +55,7 @@ import Link from 'next/link';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useError } from '@/components/providers/ErrorProvider';
 import imageCompression from 'browser-image-compression';
+import { getCacheKey, getCache, setCache, getStaleCache, CACHE_DURATIONS } from '@/lib/cache';
 
 const MotionCard = motion(Card);
 
@@ -156,22 +157,31 @@ export default function MediaPage() {
   }, [selectedTeamId, tabValue]);
 
   const fetchTeams = async () => {
+    // Load cached teams immediately
+    const cached = getStaleCache<Team[]>(getCacheKey('teams'));
+    if (cached) {
+      setTeams(cached);
+      if (cached.length > 0) {
+        setSelectedTeamId(cached[0].id);
+      }
+      setLoading(false);
+    }
+
     try {
       const res = await fetch('/api/teams');
       if (res.ok) {
         const data = await res.json();
         setTeams(data);
+        setCache(getCacheKey('teams'), data);
         // Auto-select first team if only one
-        if (data.length === 1) {
-          setSelectedTeamId(data[0].id);
-        } else if (data.length > 0) {
+        if (!cached && data.length > 0) {
           setSelectedTeamId(data[0].id);
         }
       } else {
-        await showApiError(res, 'Failed to load teams');
+        if (!cached) await showApiError(res, 'Failed to load teams');
       }
     } catch (error) {
-      showNetworkError(error, '/api/teams');
+      if (!cached) showNetworkError(error, '/api/teams');
     } finally {
       setLoading(false);
     }
@@ -179,19 +189,30 @@ export default function MediaPage() {
 
   const fetchMedia = async () => {
     if (!selectedTeamId) return;
-    setLoadingMedia(true);
+
+    const type = tabValue === 1 ? 'PHOTO' : tabValue === 2 ? 'VIDEO' : '';
+    const cacheKey = getCacheKey('media', selectedTeamId, type || 'all');
+
+    // Load cached media immediately
+    const cached = getStaleCache<{ media: MediaItem[] }>(cacheKey);
+    if (cached?.media) {
+      setMedia(cached.media.map((m: MediaItem) => ({ ...m, teamId: selectedTeamId })));
+    } else {
+      setLoadingMedia(true);
+    }
+
     try {
-      const type = tabValue === 1 ? 'PHOTO' : tabValue === 2 ? 'VIDEO' : '';
       const url = `/api/teams/${selectedTeamId}/media${type ? `?type=${type}` : ''}`;
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
         setMedia(data.media.map((m: MediaItem) => ({ ...m, teamId: selectedTeamId })));
+        setCache(cacheKey, data);
       } else {
-        await showApiError(res, 'Failed to load media');
+        if (!cached) await showApiError(res, 'Failed to load media');
       }
     } catch (error) {
-      showNetworkError(error, `/api/teams/${selectedTeamId}/media`);
+      if (!cached) showNetworkError(error, `/api/teams/${selectedTeamId}/media`);
     } finally {
       setLoadingMedia(false);
     }
@@ -470,12 +491,14 @@ export default function MediaPage() {
                   onClick={() => setSelectedMedia(item)}
                 >
                   {item.type === 'PHOTO' ? (
-                    <CardMedia
+                    <Box
                       component="img"
+                      loading="lazy"
+                      decoding="async"
                       height={200}
-                      image={item.url}
+                      src={item.url}
                       alt={item.title || 'Photo'}
-                      sx={{ objectFit: 'cover' }}
+                      sx={{ objectFit: 'cover', width: '100%' }}
                     />
                   ) : (
                     <Box
@@ -490,6 +513,8 @@ export default function MediaPage() {
                     >
                       <video
                         src={item.url}
+                        preload="none"
+                        poster=""
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                       />
                       <Box

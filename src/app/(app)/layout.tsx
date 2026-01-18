@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Box, CircularProgress } from '@mui/material';
 import AppShell from '@/components/layout/AppShell';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { TeamProvider } from '@/components/providers/TeamProvider';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { isLoggedIn, isLoading } = useAuth();
@@ -48,5 +49,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  return <AppShell>{children}</AppShell>;
+  return (
+    <TeamProvider>
+      <AppShell>{children}</AppShell>
+    </TeamProvider>
+  );
 }
