@@ -16,7 +16,7 @@ const updateChirperSchema = z.object({
 // GET - Get a single chirper
 export async function GET(
   request: NextRequest,
-  { params }: { params: { teamId: string; chirperId: string } }
+  { params }: { params: Promise<{ teamId: string; chirperId: string }> }
 ) {
   try {
     const { isLoggedIn, user } = await getAuth();
@@ -24,7 +24,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { teamId, chirperId } = params;
+    const { teamId, chirperId } = await params;
 
     // Check if user is a member of the team
     const membership = await prisma.teamMember.findFirst({
@@ -60,7 +60,7 @@ export async function GET(
 // PATCH - Update a chirper (admin only)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { teamId: string; chirperId: string } }
+  { params }: { params: Promise<{ teamId: string; chirperId: string }> }
 ) {
   try {
     const { isLoggedIn, user } = await getAuth();
@@ -68,7 +68,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { teamId, chirperId } = params;
+    const { teamId, chirperId } = await params;
 
     // Check if user is admin or owner
     const membership = await prisma.teamMember.findFirst({
@@ -108,7 +108,7 @@ export async function PATCH(
 // DELETE - Delete a chirper (admin only)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { teamId: string; chirperId: string } }
+  { params }: { params: Promise<{ teamId: string; chirperId: string }> }
 ) {
   try {
     const { isLoggedIn, user } = await getAuth();
@@ -116,7 +116,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { teamId, chirperId } = params;
+    const { teamId, chirperId } = await params;
 
     // Check if user is admin or owner
     const membership = await prisma.teamMember.findFirst({

@@ -124,8 +124,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Check if running as standalone PWA
     const standalone = window.matchMedia('(display-mode: standalone)').matches;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const iosStandalone = (window.navigator as any).standalone === true;
+    const iosStandalone = 'standalone' in window.navigator && (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
     setIsInstalled(standalone || iosStandalone);
 
     // Detect iOS
