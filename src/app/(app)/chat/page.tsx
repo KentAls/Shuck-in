@@ -58,7 +58,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { format, isToday, isYesterday } from 'date-fns';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useError } from '@/components/providers/ErrorProvider';
-import { getCacheKey, getCache, setCache, getStaleCache, CACHE_DURATIONS, compressImage } from '@/lib/cache';
+import { getCacheKey, getCache, setCache, getStaleCache, isCacheFresh, CACHE_DURATIONS, compressImage } from '@/lib/cache';
 
 const MotionBox = motion(Box);
 
@@ -139,6 +139,8 @@ export default function ChatPage() {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const previousMessagesLengthRef = useRef(0);
+  const initializedRef = useRef(false);
+  const isVisibleRef = useRef(true);
 
   const selectedTeam = teams.find((t) => t.id === selectedTeamId);
   const selectedRoom = chatRooms.find((r) => r.id === selectedRoomId);
@@ -163,10 +165,21 @@ export default function ChatPage() {
   }, [checkIfNearBottom]);
 
   useEffect(() => {
-    fetchTeams();
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
+    // Only fetch on first mount, not on tab reactivation
+    if (!initializedRef.current) {
+      initializedRef.current = true;
+      fetchTeams();
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
     }
+
+    // Handle visibility change to pause/resume polling
+    const handleVisibilityChange = () => {
+      isVisibleRef.current = document.visibilityState === 'visible';
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
   useEffect(() => {
@@ -183,10 +196,12 @@ export default function ChatPage() {
     }
   }, [selectedRoomId]);
 
-  // Poll for new messages
+  // Poll for new messages (only when tab is visible)
   useEffect(() => {
     if (!selectedRoomId) return;
     const pollInterval = setInterval(() => {
+      // Skip polling when tab is not visible
+      if (!isVisibleRef.current) return;
       fetchMessages();
     }, 3000);
     return () => clearInterval(pollInterval);
@@ -201,14 +216,21 @@ export default function ChatPage() {
   }, [handleScroll]);
 
   const fetchTeams = async () => {
+    const cacheKey = getCacheKey('teams');
+
     // Load cached teams immediately
-    const cached = getStaleCache<Team[]>(getCacheKey('teams'));
+    const cached = getStaleCache<Team[]>(cacheKey);
     if (cached) {
       setTeams(cached);
       if (!preselectedTeam && cached.length > 0) {
         setSelectedTeamId(cached[0].id);
       }
       setLoading(false);
+
+      // Skip background fetch if cache is still fresh
+      if (isCacheFresh(cacheKey, CACHE_DURATIONS.TEAMS)) {
+        return;
+      }
     }
 
     try {
@@ -216,7 +238,7 @@ export default function ChatPage() {
       if (res.ok) {
         const data = await res.json();
         setTeams(data);
-        setCache(getCacheKey('teams'), data);
+        setCache(cacheKey, data);
         if (!preselectedTeam && data.length > 0 && !cached) {
           setSelectedTeamId(data[0].id);
         }
@@ -236,14 +258,22 @@ export default function ChatPage() {
     const cached = getStaleCache<ChatRoom[]>(cacheKey);
     if (cached) {
       setChatRooms(cached);
-      const defaultRoom = cached.find((r: ChatRoom) => r.isDefault && !r.isArchived);
-      const firstActive = cached.find((r: ChatRoom) => !r.isArchived);
-      if (defaultRoom) {
-        setSelectedRoomId(defaultRoom.id);
-      } else if (firstActive) {
-        setSelectedRoomId(firstActive.id);
-      } else if (cached.length > 0) {
-        setSelectedRoomId(cached[0].id);
+      // Only set room selection if not already set
+      if (!selectedRoomId) {
+        const defaultRoom = cached.find((r: ChatRoom) => r.isDefault && !r.isArchived);
+        const firstActive = cached.find((r: ChatRoom) => !r.isArchived);
+        if (defaultRoom) {
+          setSelectedRoomId(defaultRoom.id);
+        } else if (firstActive) {
+          setSelectedRoomId(firstActive.id);
+        } else if (cached.length > 0) {
+          setSelectedRoomId(cached[0].id);
+        }
+      }
+
+      // Skip background fetch if cache is still fresh
+      if (isCacheFresh(cacheKey, CACHE_DURATIONS.TEAMS)) {
+        return;
       }
     } else {
       setRoomsLoading(true);
@@ -255,8 +285,8 @@ export default function ChatPage() {
         const data = await res.json();
         setChatRooms(data);
         setCache(cacheKey, data);
-        // Auto-select default room or first room (only if no cached selection)
-        if (!cached) {
+        // Auto-select default room or first room (only if no selection yet)
+        if (!selectedRoomId && !cached) {
           const defaultRoom = data.find((r: ChatRoom) => r.isDefault && !r.isArchived);
           const firstActive = data.find((r: ChatRoom) => !r.isArchived);
           if (defaultRoom) {
