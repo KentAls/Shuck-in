@@ -71,9 +71,11 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Add user's RSVP status to each game
+    // Add user's RSVP status and serialize dates
     const gamesWithUserRsvp = games.map((game: any) => ({
       ...game,
+      startTime: game.startTime instanceof Date ? game.startTime.toISOString() : game.startTime,
+      endTime: game.endTime instanceof Date ? game.endTime.toISOString() : game.endTime,
       userRsvp: game.rsvps.find((r: any) => r.userId === user.id) || null,
     }));
 
