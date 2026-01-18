@@ -71,13 +71,21 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (selectedTeamId) {
-      fetchMessages();
+      fetchMessages(true);
     }
   }, [selectedTeamId]);
 
+  // Poll for new messages every 3 seconds
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    if (!selectedTeamId) return;
+
+    const pollInterval = setInterval(() => {
+      fetchMessages();
+    }, 3000);
+
+    return () => clearInterval(pollInterval);
+  }, [selectedTeamId]);
+
 
   const fetchTeams = async () => {
     try {
@@ -96,14 +104,20 @@ export default function ChatPage() {
     }
   };
 
-  const fetchMessages = async () => {
+  const fetchMessages = async (initialLoad = false) => {
     if (!selectedTeamId) return;
 
     try {
       const res = await fetch(`/api/messages?teamId=${selectedTeamId}`);
       if (res.ok) {
         const data = await res.json();
-        setMessages(data.messages);
+        const newMessages = data.messages as Message[];
+        const hasNewMessages = newMessages.length > messages.length;
+        setMessages(newMessages);
+        // Only scroll on initial load or when new messages arrive
+        if (initialLoad || hasNewMessages) {
+          setTimeout(() => scrollToBottom(), 100);
+        }
       }
     } catch (error) {
       console.error('Error fetching messages:', error);

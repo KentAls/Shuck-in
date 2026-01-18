@@ -28,9 +28,10 @@ import {
   CheckCircle,
   Cancel,
   HelpOutline,
+  PersonAdd,
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
-import { format, formatDistanceToNow, isPast } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
 import { useAuth } from '@/components/providers/AuthProvider';
 
@@ -143,6 +144,57 @@ export default function DashboardPage() {
     }
   };
 
+  // Games that need RSVP (no response or pending)
+  const pendingRsvpGames = upcomingGames.filter(
+    (game) => !game.userRsvp || game.userRsvp.status === 'PENDING'
+  );
+
+  // If user has no teams, show join team prompt
+  if (!loading && teams.length === 0) {
+    return (
+      <Box>
+        <Box sx={{ mb: 4 }}>
+          <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
+            Welcome, {user?.name?.split(' ')[0] || 'Player'}
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Get started by joining or creating a team
+          </Typography>
+        </Box>
+
+        <Card sx={{ textAlign: 'center', py: 8, px: 4 }}>
+          <Groups sx={{ fontSize: 100, color: 'text.secondary', mb: 3 }} />
+          <Typography variant="h5" sx={{ mb: 2 }}>
+            You&apos;re not on any teams yet
+          </Typography>
+          <Typography variant="body1" color="text.secondary" sx={{ mb: 4, maxWidth: 400, mx: 'auto' }}>
+            Join an existing team with an invite code, or create your own team to get started.
+          </Typography>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="center">
+            <Button
+              component={Link}
+              href="/team/join"
+              variant="contained"
+              size="large"
+              startIcon={<PersonAdd />}
+            >
+              Join a Team
+            </Button>
+            <Button
+              component={Link}
+              href="/team/new"
+              variant="outlined"
+              size="large"
+              startIcon={<Add />}
+            >
+              Create a Team
+            </Button>
+          </Stack>
+        </Card>
+      </Box>
+    );
+  }
+
   return (
     <Box>
       {/* Welcome Section */}
@@ -155,59 +207,138 @@ export default function DashboardPage() {
         </Typography>
       </Box>
 
-      {/* Quick Stats */}
+      {/* Pending RSVPs Alert */}
+      {pendingRsvpGames.length > 0 && (
+        <MotionCard
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          sx={{
+            mb: 4,
+            background: `linear-gradient(135deg, ${alpha('#FFB800', 0.2)} 0%, ${alpha('#FF3366', 0.1)} 100%)`,
+            border: '1px solid',
+            borderColor: alpha('#FFB800', 0.3),
+          }}
+        >
+          <CardContent sx={{ p: 3 }}>
+            <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <HelpOutline sx={{ color: '#FFB800' }} />
+              You have {pendingRsvpGames.length} game{pendingRsvpGames.length > 1 ? 's' : ''} awaiting your response
+            </Typography>
+            <Stack spacing={2}>
+              {pendingRsvpGames.slice(0, 3).map((game) => (
+                <Link key={game.id} href={`/schedule/${game.id}`} style={{ textDecoration: 'none' }}>
+                  <Box
+                    sx={{
+                      p: 2,
+                      borderRadius: 2,
+                      backgroundColor: alpha('#000', 0.2),
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      cursor: 'pointer',
+                      '&:hover': { backgroundColor: alpha('#000', 0.3) },
+                    }}
+                  >
+                    <Box>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                        {game.title}{game.opponent && ` vs ${game.opponent}`}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {game.team.name} • {format(new Date(game.startTime), 'EEE, MMM d @ h:mm a')}
+                      </Typography>
+                    </Box>
+                    <Button variant="contained" size="small" sx={{ bgcolor: '#FFB800', color: '#000' }}>
+                      RSVP Now
+                    </Button>
+                  </Box>
+                </Link>
+              ))}
+            </Stack>
+          </CardContent>
+        </MotionCard>
+      )}
+
+      {/* Quick Stats - Now Clickable */}
       <Grid container spacing={{ xs: 1, sm: 2 }} sx={{ mb: 4 }}>
         <Grid item xs={6} sm={6} md={3}>
-          <Card sx={{ background: `linear-gradient(135deg, ${alpha('#00D9FF', 0.15)} 0%, ${alpha('#00D9FF', 0.05)} 100%)` }}>
-            <CardContent sx={{ textAlign: 'center', p: { xs: 1.5, sm: 2 } }}>
-              <Groups sx={{ fontSize: { xs: 32, sm: 40 }, color: '#00D9FF', mb: 0.5 }} />
-              <Typography sx={{ fontWeight: 700, fontSize: { xs: '1.5rem', sm: '2rem' } }}>
-                {teams.length}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                Teams
-              </Typography>
-            </CardContent>
-          </Card>
+          <Link href="/team" style={{ textDecoration: 'none' }}>
+            <Card sx={{
+              background: `linear-gradient(135deg, ${alpha('#00D9FF', 0.15)} 0%, ${alpha('#00D9FF', 0.05)} 100%)`,
+              cursor: 'pointer',
+              transition: 'transform 0.2s',
+              '&:hover': { transform: 'scale(1.02)' },
+            }}>
+              <CardContent sx={{ textAlign: 'center', p: { xs: 1.5, sm: 2 } }}>
+                <Groups sx={{ fontSize: { xs: 32, sm: 40 }, color: '#00D9FF', mb: 0.5 }} />
+                <Typography sx={{ fontWeight: 700, fontSize: { xs: '1.5rem', sm: '2rem' } }}>
+                  {teams.length}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                  Teams
+                </Typography>
+              </CardContent>
+            </Card>
+          </Link>
         </Grid>
         <Grid item xs={6} sm={6} md={3}>
-          <Card sx={{ background: `linear-gradient(135deg, ${alpha('#FF3366', 0.15)} 0%, ${alpha('#FF3366', 0.05)} 100%)` }}>
-            <CardContent sx={{ textAlign: 'center', p: { xs: 1.5, sm: 2 } }}>
-              <CalendarMonth sx={{ fontSize: { xs: 32, sm: 40 }, color: '#FF3366', mb: 0.5 }} />
-              <Typography sx={{ fontWeight: 700, fontSize: { xs: '1.5rem', sm: '2rem' } }}>
-                {upcomingGames.length}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                Upcoming
-              </Typography>
-            </CardContent>
-          </Card>
+          <Link href="/schedule" style={{ textDecoration: 'none' }}>
+            <Card sx={{
+              background: `linear-gradient(135deg, ${alpha('#FF3366', 0.15)} 0%, ${alpha('#FF3366', 0.05)} 100%)`,
+              cursor: 'pointer',
+              transition: 'transform 0.2s',
+              '&:hover': { transform: 'scale(1.02)' },
+            }}>
+              <CardContent sx={{ textAlign: 'center', p: { xs: 1.5, sm: 2 } }}>
+                <CalendarMonth sx={{ fontSize: { xs: 32, sm: 40 }, color: '#FF3366', mb: 0.5 }} />
+                <Typography sx={{ fontWeight: 700, fontSize: { xs: '1.5rem', sm: '2rem' } }}>
+                  {upcomingGames.length}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                  Upcoming
+                </Typography>
+              </CardContent>
+            </Card>
+          </Link>
         </Grid>
         <Grid item xs={6} sm={6} md={3}>
-          <Card sx={{ background: `linear-gradient(135deg, ${alpha('#00FF94', 0.15)} 0%, ${alpha('#00FF94', 0.05)} 100%)` }}>
-            <CardContent sx={{ textAlign: 'center', p: { xs: 1.5, sm: 2 } }}>
-              <EmojiEvents sx={{ fontSize: { xs: 32, sm: 40 }, color: '#00FF94', mb: 0.5 }} />
-              <Typography sx={{ fontWeight: 700, fontSize: { xs: '1.5rem', sm: '2rem' } }}>
-                {userStats.gamesPlayed}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                Games Played
-              </Typography>
-            </CardContent>
-          </Card>
+          <Link href="/schedule" style={{ textDecoration: 'none' }}>
+            <Card sx={{
+              background: `linear-gradient(135deg, ${alpha('#00FF94', 0.15)} 0%, ${alpha('#00FF94', 0.05)} 100%)`,
+              cursor: 'pointer',
+              transition: 'transform 0.2s',
+              '&:hover': { transform: 'scale(1.02)' },
+            }}>
+              <CardContent sx={{ textAlign: 'center', p: { xs: 1.5, sm: 2 } }}>
+                <EmojiEvents sx={{ fontSize: { xs: 32, sm: 40 }, color: '#00FF94', mb: 0.5 }} />
+                <Typography sx={{ fontWeight: 700, fontSize: { xs: '1.5rem', sm: '2rem' } }}>
+                  {userStats.gamesPlayed}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                  Games Played
+                </Typography>
+              </CardContent>
+            </Card>
+          </Link>
         </Grid>
         <Grid item xs={6} sm={6} md={3}>
-          <Card sx={{ background: `linear-gradient(135deg, ${alpha('#FFB800', 0.15)} 0%, ${alpha('#FFB800', 0.05)} 100%)` }}>
-            <CardContent sx={{ textAlign: 'center', p: { xs: 1.5, sm: 2 } }}>
-              <TrendingUp sx={{ fontSize: { xs: 32, sm: 40 }, color: '#FFB800', mb: 0.5 }} />
-              <Typography sx={{ fontWeight: 700, fontSize: { xs: '1.5rem', sm: '2rem' } }}>
-                {userStats.attendanceRate}%
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                Attendance
-              </Typography>
-            </CardContent>
-          </Card>
+          <Link href="/settings" style={{ textDecoration: 'none' }}>
+            <Card sx={{
+              background: `linear-gradient(135deg, ${alpha('#FFB800', 0.15)} 0%, ${alpha('#FFB800', 0.05)} 100%)`,
+              cursor: 'pointer',
+              transition: 'transform 0.2s',
+              '&:hover': { transform: 'scale(1.02)' },
+            }}>
+              <CardContent sx={{ textAlign: 'center', p: { xs: 1.5, sm: 2 } }}>
+                <TrendingUp sx={{ fontSize: { xs: 32, sm: 40 }, color: '#FFB800', mb: 0.5 }} />
+                <Typography sx={{ fontWeight: 700, fontSize: { xs: '1.5rem', sm: '2rem' } }}>
+                  {userStats.attendanceRate}%
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                  Attendance
+                </Typography>
+              </CardContent>
+            </Card>
+          </Link>
         </Grid>
       </Grid>
 
@@ -309,11 +440,18 @@ export default function DashboardPage() {
                             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
                               {formatDistanceToNow(new Date(game.startTime), { addSuffix: true })}
                             </Typography>
-                            {game.userRsvp && (
+                            {game.userRsvp ? (
                               <Chip
                                 icon={getRsvpIcon(game.userRsvp.status) || undefined}
                                 label={`You're ${game.userRsvp.status}`}
                                 color={getRsvpColor(game.userRsvp.status) as any}
+                                size="small"
+                              />
+                            ) : (
+                              <Chip
+                                icon={<HelpOutline />}
+                                label="RSVP needed"
+                                color="warning"
                                 size="small"
                               />
                             )}
@@ -371,32 +509,6 @@ export default function DashboardPage() {
                 <Skeleton key={i} variant="rounded" height={100} />
               ))}
             </Stack>
-          ) : teams.length === 0 ? (
-            <Card sx={{ textAlign: 'center', py: 4 }}>
-              <Groups sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
-              <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
-                No teams yet
-              </Typography>
-              <Stack spacing={1}>
-                <Button
-                  component={Link}
-                  href="/team/new"
-                  variant="contained"
-                  startIcon={<Add />}
-                  fullWidth
-                >
-                  Create Team
-                </Button>
-                <Button
-                  component={Link}
-                  href="/team/join"
-                  variant="outlined"
-                  fullWidth
-                >
-                  Join Team
-                </Button>
-              </Stack>
-            </Card>
           ) : (
             <Stack spacing={2}>
               {teams.map((team, index) => (

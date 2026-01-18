@@ -169,9 +169,12 @@ export default function GameDetailPage({
       if (res.ok) {
         await fetchGame();
         setSnackbar({ open: true, message: `You're ${status}!`, severity: 'success' });
+      } else {
+        const data = await res.json();
+        setSnackbar({ open: true, message: data.error || 'Failed to update RSVP', severity: 'error' });
       }
     } catch (error) {
-      console.error('Error updating RSVP:', error);
+      setSnackbar({ open: true, message: 'Network error. Please try again.', severity: 'error' });
     } finally {
       setSubmitting(false);
     }
