@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Transform to include userRole at top level
-    const teamsWithRole = teams.map((team) => ({
+    const teamsWithRole = teams.map((team: typeof teams[number]) => ({
       id: team.id,
       name: team.name,
       sport: team.sport,

@@ -66,17 +66,13 @@ export async function PATCH(
 
     const { teamId, roomId } = await params;
 
-    // Check if user is admin/owner
+    // Check if user is a team member (anyone can update chat rooms)
     const membership = await prisma.teamMember.findFirst({
       where: { teamId, userId: user.id, status: 'ACTIVE' },
     });
 
     if (!membership) {
       return NextResponse.json({ error: 'Not a team member' }, { status: 403 });
-    }
-
-    if (membership.role !== 'OWNER' && membership.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Only admins can update chat rooms' }, { status: 403 });
     }
 
     const chatRoom = await prisma.chatRoom.findFirst({
