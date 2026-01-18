@@ -91,12 +91,16 @@ export default function SchedulePage() {
 
       if (gamesRes.ok) {
         const gamesData = await gamesRes.json();
-        setGames(gamesData);
+        // Filter out any games without proper team data
+        const validGames = Array.isArray(gamesData)
+          ? gamesData.filter((g: Game) => g && g.team && g.team.id)
+          : [];
+        setGames(validGames);
       }
 
       if (teamsRes.ok) {
         const teamsData = await teamsRes.json();
-        setTeams(teamsData);
+        setTeams(Array.isArray(teamsData) ? teamsData : []);
       }
     } catch (error) {
       console.error('Error fetching data:', error);

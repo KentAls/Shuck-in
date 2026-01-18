@@ -355,7 +355,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', background: '#0A0E17' }}>
+    <Box sx={{ display: 'flex', minHeight: '100vh', background: '#0A0E17', width: '100%', maxWidth: '100vw', overflowX: 'hidden' }}>
       {/* Desktop Drawer */}
       {!isMobile && (
         <Drawer
@@ -400,6 +400,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           flexDirection: 'column',
           minHeight: '100vh',
           pb: isMobile ? '72px' : 0,
+          width: isMobile ? '100%' : `calc(100% - ${drawerWidth}px)`,
+          maxWidth: '100%',
+          overflowX: 'hidden',
         }}
       >
         {/* Top AppBar */}
@@ -526,7 +529,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </AppBar>
 
         {/* Page Content */}
-        <Box sx={{ flex: 1, p: { xs: 2, md: 3 } }}>{children}</Box>
+        <Box sx={{ flex: 1, p: { xs: 2, md: 3 }, width: '100%', maxWidth: '100%', overflowX: 'hidden', boxSizing: 'border-box' }}>{children}</Box>
       </Box>
 
       {/* Mobile Bottom Navigation */}
