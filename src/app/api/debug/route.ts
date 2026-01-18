@@ -47,6 +47,36 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    // Simulate exactly what /api/games returns
+    const gamesApiSimulation = await prisma.game.findMany({
+      where: {
+        teamId: { in: teamIds },
+      },
+      include: {
+        team: {
+          select: {
+            id: true,
+            name: true,
+            color: true,
+          },
+        },
+        rsvps: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                image: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        startTime: 'asc',
+      },
+    });
+
     // Get future games
     const futureGames = await prisma.game.findMany({
       where: {
@@ -82,6 +112,15 @@ export async function GET(request: NextRequest) {
       futureGamesForUser: futureGames.map((g: typeof futureGames[number]) => ({
         ...g,
         startTime: g.startTime.toISOString(),
+      })),
+      // This is exactly what /api/games returns - check if schedule page gets this
+      gamesApiResponse: gamesApiSimulation.map((g: any) => ({
+        id: g.id,
+        title: g.title,
+        startTime: g.startTime instanceof Date ? g.startTime.toISOString() : g.startTime,
+        endTime: g.endTime instanceof Date ? g.endTime.toISOString() : g.endTime,
+        team: g.team,
+        rsvpCount: g.rsvps?.length || 0,
       })),
     });
   } catch (error: any) {
