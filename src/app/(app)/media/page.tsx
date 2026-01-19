@@ -111,11 +111,58 @@ export default function MediaPage() {
   const [zoomLevel, setZoomLevel] = useState(1);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageContainerRef = useRef<HTMLDivElement>(null);
+  const lastTouchDistance = useRef<number | null>(null);
 
   // Simple fullscreen toggle - just uses Dialog's fullScreen prop
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);
   };
+
+  // Pinch-to-zoom using native event listeners (needed for preventDefault to work)
+  useEffect(() => {
+    const container = imageContainerRef.current;
+    if (!container || !selectedMedia || selectedMedia.type !== 'PHOTO') return;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        const distance = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        lastTouchDistance.current = distance;
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && lastTouchDistance.current !== null) {
+        e.preventDefault();
+        const distance = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        const scale = distance / lastTouchDistance.current;
+        setZoomLevel(prev => Math.min(3, Math.max(0.5, prev * scale)));
+        lastTouchDistance.current = distance;
+      }
+    };
+
+    const handleTouchEnd = () => {
+      lastTouchDistance.current = null;
+    };
+
+    // Use non-passive listeners so preventDefault works
+    container.addEventListener('touchstart', handleTouchStart, { passive: false });
+    container.addEventListener('touchmove', handleTouchMove, { passive: false });
+    container.addEventListener('touchend', handleTouchEnd);
+
+    return () => {
+      container.removeEventListener('touchstart', handleTouchStart);
+      container.removeEventListener('touchmove', handleTouchMove);
+      container.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [selectedMedia]);
 
   // Handle download
   const handleDownload = async (item: MediaItem) => {
@@ -694,19 +741,19 @@ export default function MediaPage() {
                 </Box>
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', flexShrink: 0, ml: { xs: 'auto', sm: 0 } }}>
-                {/* Zoom controls for photos - hide on mobile */}
+                {/* Zoom controls for photos */}
                 {selectedMedia.type === 'PHOTO' && (
-                  <Box sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center' }}>
-                    <IconButton onClick={() => setZoomLevel(z => Math.max(0.5, z - 0.25))} disabled={zoomLevel <= 0.5}>
+                  <>
+                    <IconButton onClick={() => setZoomLevel(z => Math.max(0.5, z - 0.25))} disabled={zoomLevel <= 0.5} size="small">
                       <ZoomOut />
                     </IconButton>
-                    <Typography variant="caption" sx={{ mx: 0.5, minWidth: 40, textAlign: 'center' }}>
+                    <Typography variant="caption" sx={{ mx: 0.5, minWidth: 35, textAlign: 'center', display: { xs: 'none', sm: 'block' } }}>
                       {Math.round(zoomLevel * 100)}%
                     </Typography>
-                    <IconButton onClick={() => setZoomLevel(z => Math.min(3, z + 0.25))} disabled={zoomLevel >= 3}>
+                    <IconButton onClick={() => setZoomLevel(z => Math.min(3, z + 0.25))} disabled={zoomLevel >= 3} size="small">
                       <ZoomIn />
                     </IconButton>
-                  </Box>
+                  </>
                 )}
                 {/* Download button - always visible */}
                 <IconButton onClick={() => handleDownload(selectedMedia)} title="Download">
@@ -734,6 +781,7 @@ export default function MediaPage() {
               </Box>
             </DialogTitle>
             <DialogContent
+              ref={imageContainerRef}
               sx={{
                 display: 'flex',
                 alignItems: 'center',
@@ -741,6 +789,7 @@ export default function MediaPage() {
                 p: 0,
                 overflow: 'auto',
                 bgcolor: '#000',
+                touchAction: 'none', // Disable browser touch handling for pinch-zoom
               }}
               onDoubleClick={() => selectedMedia.type === 'PHOTO' && setZoomLevel(z => z === 1 ? 2 : 1)}
             >
@@ -748,13 +797,16 @@ export default function MediaPage() {
                 <Box
                   component="img"
                   src={selectedMedia.url}
+                  draggable={false}
                   sx={{
                     maxWidth: zoomLevel === 1 ? '100%' : 'none',
                     maxHeight: zoomLevel === 1 ? (isFullscreen ? 'calc(100vh - 120px)' : 'calc(90vh - 150px)') : 'none',
                     width: zoomLevel !== 1 ? `${zoomLevel * 100}%` : 'auto',
                     objectFit: 'contain',
-                    transition: 'transform 0.2s',
+                    transition: 'width 0.1s ease-out',
                     cursor: zoomLevel > 1 ? 'move' : 'zoom-in',
+                    userSelect: 'none',
+                    pointerEvents: 'none', // Let container handle touch events
                   }}
                 />
               ) : (
