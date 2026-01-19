@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { teamId: string; mediaId: string } }
+  { params }: { params: Promise<{ teamId: string; mediaId: string }> }
 ) {
   try {
     const { isLoggedIn, user } = await getAuth();
@@ -14,7 +14,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { teamId, mediaId } = params;
+    const { teamId, mediaId } = await params;
 
     // Check if user is a member of the team
     const membership = await prisma.teamMember.findFirst({
@@ -58,7 +58,7 @@ export async function GET(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { teamId: string; mediaId: string } }
+  { params }: { params: Promise<{ teamId: string; mediaId: string }> }
 ) {
   try {
     const { isLoggedIn, user } = await getAuth();
@@ -66,7 +66,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { teamId, mediaId } = params;
+    const { teamId, mediaId } = await params;
 
     // Get the media to check ownership
     const media = await prisma.teamMedia.findFirst({
