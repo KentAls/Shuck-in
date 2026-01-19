@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Grid,
@@ -111,7 +111,7 @@ export default function MediaPage() {
   const [zoomLevel, setZoomLevel] = useState(1);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const imageRef = useRef<HTMLImageElement>(null);
+  const imageContainerRef = useRef<HTMLDivElement>(null);
   const lastTouchDistance = useRef<number | null>(null);
 
   // Simple fullscreen toggle - just uses Dialog's fullScreen prop
@@ -119,33 +119,50 @@ export default function MediaPage() {
     setIsFullscreen(!isFullscreen);
   };
 
-  // Pinch-to-zoom handlers
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (e.touches.length === 2) {
-      const distance = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
-      );
-      lastTouchDistance.current = distance;
-    }
-  }, []);
+  // Pinch-to-zoom using native event listeners (needed for preventDefault to work)
+  useEffect(() => {
+    const container = imageContainerRef.current;
+    if (!container || !selectedMedia || selectedMedia.type !== 'PHOTO') return;
 
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (e.touches.length === 2 && lastTouchDistance.current !== null) {
-      e.preventDefault();
-      const distance = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
-      );
-      const scale = distance / lastTouchDistance.current;
-      setZoomLevel(prev => Math.min(3, Math.max(0.5, prev * scale)));
-      lastTouchDistance.current = distance;
-    }
-  }, []);
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        const distance = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        lastTouchDistance.current = distance;
+      }
+    };
 
-  const handleTouchEnd = useCallback(() => {
-    lastTouchDistance.current = null;
-  }, []);
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && lastTouchDistance.current !== null) {
+        e.preventDefault();
+        const distance = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        const scale = distance / lastTouchDistance.current;
+        setZoomLevel(prev => Math.min(3, Math.max(0.5, prev * scale)));
+        lastTouchDistance.current = distance;
+      }
+    };
+
+    const handleTouchEnd = () => {
+      lastTouchDistance.current = null;
+    };
+
+    // Use non-passive listeners so preventDefault works
+    container.addEventListener('touchstart', handleTouchStart, { passive: false });
+    container.addEventListener('touchmove', handleTouchMove, { passive: false });
+    container.addEventListener('touchend', handleTouchEnd);
+
+    return () => {
+      container.removeEventListener('touchstart', handleTouchStart);
+      container.removeEventListener('touchmove', handleTouchMove);
+      container.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [selectedMedia]);
 
   // Handle download
   const handleDownload = async (item: MediaItem) => {
@@ -764,6 +781,7 @@ export default function MediaPage() {
               </Box>
             </DialogTitle>
             <DialogContent
+              ref={imageContainerRef}
               sx={{
                 display: 'flex',
                 alignItems: 'center',
@@ -771,18 +789,15 @@ export default function MediaPage() {
                 p: 0,
                 overflow: 'auto',
                 bgcolor: '#000',
-                touchAction: 'none', // Enable custom touch handling
+                touchAction: 'none', // Disable browser touch handling for pinch-zoom
               }}
               onDoubleClick={() => selectedMedia.type === 'PHOTO' && setZoomLevel(z => z === 1 ? 2 : 1)}
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleTouchEnd}
             >
               {selectedMedia.type === 'PHOTO' ? (
                 <Box
-                  ref={imageRef}
                   component="img"
                   src={selectedMedia.url}
+                  draggable={false}
                   sx={{
                     maxWidth: zoomLevel === 1 ? '100%' : 'none',
                     maxHeight: zoomLevel === 1 ? (isFullscreen ? 'calc(100vh - 120px)' : 'calc(90vh - 150px)') : 'none',
@@ -791,6 +806,7 @@ export default function MediaPage() {
                     transition: 'width 0.1s ease-out',
                     cursor: zoomLevel > 1 ? 'move' : 'zoom-in',
                     userSelect: 'none',
+                    pointerEvents: 'none', // Let container handle touch events
                   }}
                 />
               ) : (
