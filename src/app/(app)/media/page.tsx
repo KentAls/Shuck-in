@@ -55,7 +55,7 @@ import Link from 'next/link';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useError } from '@/components/providers/ErrorProvider';
 import imageCompression from 'browser-image-compression';
-import { getCacheKey, getCache, setCache, getStaleCache, CACHE_DURATIONS } from '@/lib/cache';
+import { getCacheKey, getCache, setCache, getStaleCache, isCacheFresh, CACHE_DURATIONS } from '@/lib/cache';
 
 const MotionCard = motion(Card);
 
@@ -245,6 +245,12 @@ export default function MediaPage() {
     const cached = getStaleCache<{ media: MediaItem[] }>(cacheKey);
     if (cached?.media) {
       setMedia(cached.media.map((m: MediaItem) => ({ ...m, teamId: selectedTeamId })));
+      setLoadingMedia(false);
+
+      // Skip network fetch if cache is still fresh (10 minutes for media)
+      if (isCacheFresh(cacheKey, CACHE_DURATIONS.MEDIA)) {
+        return;
+      }
     } else {
       setLoadingMedia(true);
     }
