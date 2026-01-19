@@ -781,7 +781,6 @@ export default function MediaPage() {
               </Box>
             </DialogTitle>
             <DialogContent
-              ref={imageContainerRef}
               sx={{
                 display: 'flex',
                 alignItems: 'center',
@@ -789,26 +788,37 @@ export default function MediaPage() {
                 p: 0,
                 overflow: 'auto',
                 bgcolor: '#000',
-                touchAction: 'none', // Disable browser touch handling for pinch-zoom
               }}
               onDoubleClick={() => selectedMedia.type === 'PHOTO' && setZoomLevel(z => z === 1 ? 2 : 1)}
             >
               {selectedMedia.type === 'PHOTO' ? (
-                <Box
-                  component="img"
-                  src={selectedMedia.url}
-                  draggable={false}
-                  sx={{
-                    maxWidth: zoomLevel === 1 ? '100%' : 'none',
-                    maxHeight: zoomLevel === 1 ? (isFullscreen ? 'calc(100vh - 120px)' : 'calc(90vh - 150px)') : 'none',
-                    width: zoomLevel !== 1 ? `${zoomLevel * 100}%` : 'auto',
-                    objectFit: 'contain',
-                    transition: 'width 0.1s ease-out',
-                    cursor: zoomLevel > 1 ? 'move' : 'zoom-in',
-                    userSelect: 'none',
-                    pointerEvents: 'none', // Let container handle touch events
+                <div
+                  ref={imageContainerRef}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'auto',
+                    touchAction: 'none',
                   }}
-                />
+                >
+                  <img
+                    src={selectedMedia.url}
+                    draggable={false}
+                    style={{
+                      maxWidth: zoomLevel === 1 ? '100%' : 'none',
+                      maxHeight: zoomLevel === 1 ? (isFullscreen ? 'calc(100vh - 120px)' : 'calc(90vh - 150px)') : 'none',
+                      width: zoomLevel !== 1 ? `${zoomLevel * 100}%` : 'auto',
+                      objectFit: 'contain',
+                      transition: 'width 0.1s ease-out',
+                      cursor: zoomLevel > 1 ? 'move' : 'zoom-in',
+                      userSelect: 'none',
+                      pointerEvents: 'none',
+                    }}
+                  />
+                </div>
               ) : (
                 <Box
                   component="video"
