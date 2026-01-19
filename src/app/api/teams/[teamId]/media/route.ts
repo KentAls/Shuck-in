@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@/lib/auth';
 import prisma from '@/lib/prisma';
-import { z } from 'zod';
+import { uploadToStorage } from '@/lib/supabase';
+import { randomUUID } from 'crypto';
 
 export const dynamic = 'force-dynamic';
 
@@ -126,17 +127,30 @@ export async function POST(
       );
     }
 
-    // Convert to base64 data URL
+    // Generate unique file path
+    const ext = file.name.split('.').pop() || (isImage ? 'jpg' : 'mp4');
+    const fileName = `${randomUUID()}.${ext}`;
+    const storagePath = `${teamId}/${fileName}`;
+
+    // Upload to Supabase Storage
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    const base64 = buffer.toString('base64');
-    const dataUrl = `data:${file.type};base64,${base64}`;
+    const { url, error: uploadError } = await uploadToStorage(buffer, storagePath, file.type);
 
-    // Create media record
+    if (uploadError) {
+      console.error('Storage upload error:', uploadError);
+      return NextResponse.json(
+        { error: 'Failed to upload file to storage' },
+        { status: 500 }
+      );
+    }
+
+    // Create media record with storage URL
     const media = await prisma.teamMedia.create({
       data: {
         type: isImage ? 'PHOTO' : 'VIDEO',
-        url: dataUrl,
+        url,
+        storagePath, // Store path for deletion later
         title: title || null,
         description: description || null,
         fileSize: file.size,

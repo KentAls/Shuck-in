@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { deleteFromStorage } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
@@ -101,6 +102,15 @@ export async function DELETE(
         { error: 'Only the uploader or team admins can delete this media' },
         { status: 403 }
       );
+    }
+
+    // Delete from Supabase Storage if storagePath exists
+    if (media.storagePath) {
+      const { error: storageError } = await deleteFromStorage(media.storagePath);
+      if (storageError) {
+        console.error('Storage delete error:', storageError);
+        // Continue with DB deletion even if storage delete fails
+      }
     }
 
     await prisma.teamMedia.delete({

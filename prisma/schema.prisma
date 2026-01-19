@@ -228,6 +228,7 @@ model TeamMedia {
   id          String    @id @default(cuid())
   type        MediaType
   url         String    @db.Text
+  storagePath String?   // Path in Supabase Storage for deletion
   thumbnail   String?   @db.Text
   title       String?
   description String?
