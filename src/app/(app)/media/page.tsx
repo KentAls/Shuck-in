@@ -681,8 +681,8 @@ export default function MediaPage() {
       >
         {selectedMedia && (
           <>
-            <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 1 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, minWidth: 0, flex: 1 }}>
+            <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 1, px: { xs: 1, sm: 2 }, gap: 1 }}>
+              <Box sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: 2, minWidth: 0, flex: 1 }}>
                 <Avatar src={selectedMedia.uploadedBy.image || undefined} sx={{ width: 32, height: 32, flexShrink: 0 }} />
                 <Box sx={{ minWidth: 0 }}>
                   <Typography variant="subtitle1" sx={{ fontWeight: 600 }} noWrap>
@@ -693,10 +693,10 @@ export default function MediaPage() {
                   </Typography>
                 </Box>
               </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-                {/* Zoom controls for photos */}
+              <Box sx={{ display: 'flex', alignItems: 'center', flexShrink: 0, ml: { xs: 'auto', sm: 0 } }}>
+                {/* Zoom controls for photos - hide on mobile */}
                 {selectedMedia.type === 'PHOTO' && (
-                  <>
+                  <Box sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center' }}>
                     <IconButton onClick={() => setZoomLevel(z => Math.max(0.5, z - 0.25))} disabled={zoomLevel <= 0.5}>
                       <ZoomOut />
                     </IconButton>
@@ -706,13 +706,13 @@ export default function MediaPage() {
                     <IconButton onClick={() => setZoomLevel(z => Math.min(3, z + 0.25))} disabled={zoomLevel >= 3}>
                       <ZoomIn />
                     </IconButton>
-                  </>
+                  </Box>
                 )}
-                {/* Download button */}
+                {/* Download button - always visible */}
                 <IconButton onClick={() => handleDownload(selectedMedia)} title="Download">
                   <Download />
                 </IconButton>
-                {/* Fullscreen button */}
+                {/* Fullscreen button - always visible */}
                 <IconButton onClick={toggleFullscreen} title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}>
                   {isFullscreen ? <FullscreenExit /> : <Fullscreen />}
                 </IconButton>
